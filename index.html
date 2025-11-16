@@ -392,6 +392,10 @@
                 <button class="btn" id="analyzeBtn" onclick="analyzeClearances()" disabled>
                     🔍 Calculate Clearance Zones
                 </button>
+
+                <button class="btn btn-secondary" id="showClearancesBtn" onclick="showClearanceZones()" style="display: none;">
+                    📏 Show Clearance Zones
+                </button>
             </div>
 
             <div class="loading" id="loadingIndicator" style="display: none;">
@@ -705,35 +709,48 @@
         }
 
         function handlePositionClick(e) {
-            console.log('Position click detected!', e);
+            if (state.isCalibrating) return;
 
-            if (state.isCalibrating) {
-                console.log('Ignoring click - still calibrating');
-                return;
-            }
-
-            if (!state.mode) {
-                console.log('Ignoring click - no mode set');
-                return;
-            }
+            console.log('Position click detected!'); // Debug
 
             const rect = state.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * state.canvasScale;
             const y = (e.clientY - rect.top) * state.canvasScale;
 
-            console.log('Position marked at:', x, y, 'Canvas scale:', state.canvasScale);
+            console.log('Clicked at:', x, y); // Debug
 
             state.position = {x, y};
 
-            // Redraw everything
+            // Clear and redraw EVERYTHING
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
-            drawPositionMarker(x, y);
+
+            // Draw BIG obvious marker
+            state.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            state.ctx.strokeStyle = '#ff0000';
+            state.ctx.lineWidth = 5;
+            state.ctx.beginPath();
+            state.ctx.arc(x, y, 30, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            // Draw crosshair
+            state.ctx.strokeStyle = '#ff0000';
+            state.ctx.lineWidth = 3;
+            state.ctx.beginPath();
+            state.ctx.moveTo(x - 50, y);
+            state.ctx.lineTo(x + 50, y);
+            state.ctx.moveTo(x, y - 50);
+            state.ctx.lineTo(x, y + 50);
+            state.ctx.stroke();
+
+            console.log('Marker drawn'); // Debug
 
             document.getElementById('analyzeBtn').disabled = false;
 
             const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
-            document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked. Click "Calculate Clearance Zones" to analyze.`;
+            document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked at (${Math.round(x)}, ${Math.round(y)}). Click analyze.`;
         }
 
         function drawPositionMarker(x, y) {
@@ -799,10 +816,9 @@
                 
                 state.detections = result.detections || [];
                 state.zones = result.zones || { prohibited: [], restricted: [], safe: [] };
-                
+
                 displayResults();
-                drawClearanceZones();
-                
+
                 const status = document.getElementById('analysisStatus');
                 status.classList.add('active');
                 status.classList.remove('error');
@@ -823,20 +839,58 @@
         function displayResults() {
             const panel = document.getElementById('resultsPanel');
             const list = document.getElementById('detectionsList');
-            
+
+            // First, draw the detected objects on the canvas
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            // Draw each detected object with bright colors
+            state.detections.forEach((obj, index) => {
+                const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00'];
+                const color = colors[index % colors.length];
+
+                state.ctx.strokeStyle = color;
+                state.ctx.lineWidth = 5;
+                state.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+
+                // Label
+                state.ctx.fillStyle = color;
+                state.ctx.font = 'bold 24px Arial';
+                state.ctx.fillText(`${index + 1}: ${obj.type}`, obj.x + 5, obj.y + 30);
+            });
+
+            // Redraw position marker
+            if (state.position) {
+                state.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                state.ctx.strokeStyle = '#ff0000';
+                state.ctx.lineWidth = 5;
+                state.ctx.beginPath();
+                state.ctx.arc(state.position.x, state.position.y, 30, 0, Math.PI * 2);
+                state.ctx.fill();
+                state.ctx.stroke();
+            }
+
+            // Show list
             if (state.detections.length === 0) {
-                list.innerHTML = '<p>No objects detected. The area appears clear!</p>';
+                list.innerHTML = '<p>No objects detected.</p>';
             } else {
-                list.innerHTML = state.detections.map(obj => `
+                list.innerHTML = state.detections.map((obj, i) => `
                     <div class="detection-item">
-                        <strong>${obj.type}</strong> - 
-                        Confidence: ${(obj.confidence * 100).toFixed(0)}% - 
-                        Position: (${obj.x.toFixed(0)}, ${obj.y.toFixed(0)})
+                        <strong>${i + 1}. ${obj.type}</strong> -
+                        Confidence: ${(obj.confidence * 100).toFixed(0)}% -
+                        Box: ${obj.x.toFixed(0)},${obj.y.toFixed(0)} (${obj.width.toFixed(0)}×${obj.height.toFixed(0)})
                     </div>
                 `).join('');
             }
-            
+
             panel.classList.add('active');
+            document.getElementById('showClearancesBtn').style.display = 'block';
+        }
+
+        function showClearanceZones() {
+            drawClearanceZones();
+            document.getElementById('showClearancesBtn').style.display = 'none';
         }
 
         function drawCircularClearance(x, y, radiusPx, color, dashPattern) {
