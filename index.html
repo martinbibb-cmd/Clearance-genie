@@ -662,11 +662,36 @@
             document.getElementById('cardWidthDisplay').textContent = avgWidthPx.toFixed(1);
             document.getElementById('cardHeightDisplay').textContent = avgHeightPx.toFixed(1);
             document.getElementById('accuracyDisplay').textContent = accuracyRating;
-            
+
             document.getElementById('analysisCard').style.display = 'block';
+
+            // FIX: Clone canvas to remove ALL event listeners
+            const oldCanvas = state.canvas;
+            const newCanvas = oldCanvas.cloneNode(false);
+            oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+
+            // Update state references
+            state.canvas = newCanvas;
+            state.ctx = newCanvas.getContext('2d');
+
+            // Redraw photo and calibration overlay
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            // Recalculate canvas scale
+            const rect = newCanvas.getBoundingClientRect();
+            state.canvasScale = newCanvas.width / rect.width;
         }
 
         function startFlueMode() {
+            console.log('startFlueMode() called');
+
+            // Check if canvas exists
+            if (!state.canvas) {
+                console.error('Canvas not available');
+                return;
+            }
+
             state.mode = 'flue';
             state.position = null; // Clear any previous position
             document.getElementById('positionInstructions').style.display = 'block';
@@ -688,6 +713,14 @@
         }
 
         function startBoilerMode() {
+            console.log('startBoilerMode() called');
+
+            // Check if canvas exists
+            if (!state.canvas) {
+                console.error('Canvas not available');
+                return;
+            }
+
             state.mode = 'boiler';
             state.position = null; // Clear any previous position
             document.getElementById('positionInstructions').style.display = 'block';
