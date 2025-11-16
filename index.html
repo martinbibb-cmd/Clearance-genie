@@ -288,6 +288,56 @@
         .zone-blue {
             background: rgba(66, 153, 225, 0.5);
         }
+
+        .obstacle-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            border-left: 3px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .obstacle-item strong {
+            color: #667eea;
+        }
+
+        .obstacle-delete-btn {
+            background: #f56565;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .obstacle-delete-btn:hover {
+            background: #e53e3e;
+        }
+
+        .compliance-pass {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .compliance-fail {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            text-align: center;
+        }
     </style>
 
 </head>
@@ -388,25 +438,52 @@
                         <option value="ideal">Ideal</option>
                     </select>
                 </label>
-                
-                <button class="btn" id="analyzeBtn" onclick="analyzeClearances()" disabled>
-                    🔍 Calculate Clearance Zones
-                </button>
-
-                <button class="btn btn-secondary" id="showClearancesBtn" onclick="showClearanceZones()" style="display: none;">
-                    📏 Show Clearance Zones
-                </button>
             </div>
 
-            <div class="loading" id="loadingIndicator" style="display: none;">
-                <div class="spinner"></div>
-                <p>Analyzing image with AI...</p>
+            <div id="obstacleMarkingSection" style="display: none;">
+                <div class="instructions">
+                    <h3>Step 4: Mark Obstacles</h3>
+                    <p>Click a button below, then tap on the image to mark obstacles:</p>
+                </div>
+
+                <div class="status" id="markingStatus">
+                    Select an obstacle type below to start marking
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('window')">
+                        🪟 Add Window
+                    </button>
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('vent')">
+                        🌀 Add Vent
+                    </button>
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('corner')">
+                        📐 Add Corner
+                    </button>
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('soffit')">
+                        🏠 Add Soffit/Eaves
+                    </button>
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('downpipe')">
+                        💧 Add Downpipe
+                    </button>
+                    <button class="btn btn-danger" onclick="cancelMarking()">
+                        ❌ Cancel Marking
+                    </button>
+                </div>
+
+                <div id="obstaclesList" style="display: none;">
+                    <h4 style="margin-top: 20px; color: #667eea;">Marked Obstacles:</h4>
+                    <div id="obstaclesListContent"></div>
+                </div>
+
+                <button class="btn" id="calculateBtn" onclick="calculateClearances()" style="margin-top: 20px; display: none;">
+                    🔍 Calculate Clearance Zones
+                </button>
             </div>
 
             <div class="status" id="analysisStatus"></div>
 
             <div class="results-panel" id="resultsPanel">
-                <h4>🎯 Detection Results</h4>
                 <div class="zone-legend">
                     <div class="zone-legend-item">
                         <div class="zone-color-box zone-red"></div>
@@ -416,21 +493,74 @@
                         <div class="zone-color-box zone-green"></div>
                         <span>Safe Zone</span>
                     </div>
-                    <div class="zone-legend-item">
-                        <div class="zone-color-box zone-blue"></div>
-                        <span>Restricted (Plume Kit)</span>
-                    </div>
                 </div>
-                <div id="detectionsList"></div>
+                <div id="complianceResult" style="margin-top: 20px;"></div>
             </div>
         </div>
     </div>
 
     <script>
         // Configuration
-        const WORKER_URL = 'https://clearance-genie-worker.martinbibb.workers.dev';
         const CARD_WIDTH_MM = 85.6;
         const CARD_HEIGHT_MM = 53.98;
+
+        // Brand-specific clearance rules (in mm from obstruction edge to flue/boiler center)
+        const CLEARANCE_RULES = {
+            worcester: {
+                flue: {
+                    window: 300,
+                    door: 300,
+                    corner: 300,
+                    soffit: 300,
+                    vent: 300,
+                    boundary: 600,
+                    ground: 2000,
+                    downpipe: 75
+                },
+                boiler: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 50,
+                    floor: 500
+                }
+            },
+            vaillant: {
+                flue: {
+                    window: 300,
+                    door: 300,
+                    corner: 300,
+                    soffit: 300,
+                    vent: 300,
+                    boundary: 600,
+                    ground: 2000,
+                    downpipe: 75
+                },
+                boiler: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 50,
+                    floor: 500
+                }
+            },
+            ideal: {
+                flue: {
+                    window: 300,
+                    door: 300,
+                    corner: 300,
+                    soffit: 300,
+                    vent: 300,
+                    boundary: 600,
+                    ground: 2000,
+                    downpipe: 75
+                },
+                boiler: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 50,
+                    floor: 500
+                }
+            }
+        };
 
         // Core state
         const state = {
@@ -444,7 +574,9 @@
             position: null,
             canvasScale: 1,
             mode: null,
-            detections: [],
+            obstacles: [], // Manual obstacles marked by user
+            markingMode: null, // Current obstacle type being marked
+            markingPoints: [], // Points collected during marking
             zones: null
         };
 
@@ -780,10 +912,14 @@
 
             console.log('Marker drawn'); // Debug
 
-            document.getElementById('analyzeBtn').disabled = false;
-
             const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
-            document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked at (${Math.round(x)}, ${Math.round(y)}). Click analyze.`;
+            document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked! Now mark obstacles below.`;
+
+            // Remove position click listener
+            state.canvas.removeEventListener('click', handlePositionClick);
+
+            // Show obstacle marking section
+            document.getElementById('obstacleMarkingSection').style.display = 'block';
         }
 
         function drawPositionMarker(x, y) {
@@ -805,125 +941,300 @@
             state.ctx.stroke();
         }
 
-        async function analyzeClearances() {
-            if (!state.position || !state.pxPerMM || !state.photoBase64) return;
-            
-            const brand = document.getElementById('brandSelect').value;
-            
-            document.getElementById('loadingIndicator').style.display = 'block';
-            document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('analysisStatus').classList.remove('active');
-            
-            try {
-                const response = await fetch(WORKER_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        image: state.photoBase64,
-                        pxPerMM: state.pxPerMM,
-                        mode: state.mode,
-                        brand: brand,
-                        position: state.position,
-                        imageWidth: state.canvas.width,
-                        imageHeight: state.canvas.height
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Worker error: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                console.log('Worker response:', result);
-                console.log('Detections:', result.detections);
-                console.log('Zones:', result.zones);
-                console.log('Canvas dimensions:', state.canvas.width, state.canvas.height);
-                console.log('Position:', state.position);
-                console.log('pxPerMM:', state.pxPerMM);
+        function startMarkingObstacle(type) {
+            state.markingMode = type;
+            state.markingPoints = [];
 
-                if (!result.success) {
-                    throw new Error(result.error || 'Unknown error');
-                }
-                
-                state.detections = result.detections || [];
-                state.zones = result.zones || { prohibited: [], restricted: [], safe: [] };
+            const needsPoints = (type === 'corner' || type === 'downpipe') ? 1 : 2;
 
-                displayResults();
+            const status = document.getElementById('markingStatus');
+            status.classList.add('active');
+            status.textContent = `👆 Tap ${needsPoints === 1 ? 'location' : 'top-left corner'} of ${type}`;
 
-                const status = document.getElementById('analysisStatus');
-                status.classList.add('active');
-                status.classList.remove('error');
-                status.textContent = `✅ Analysis complete! Found ${state.detections.length} objects.`;
-                
-            } catch (error) {
-                console.error('Analysis error:', error);
-                const status = document.getElementById('analysisStatus');
-                status.classList.add('active');
-                status.classList.add('error');
-                status.textContent = `❌ Error: ${error.message}`;
-            } finally {
-                document.getElementById('loadingIndicator').style.display = 'none';
-                document.getElementById('analyzeBtn').disabled = false;
+            // Add marking click listener
+            state.canvas.removeEventListener('click', handleMarkingClick);
+            state.canvas.addEventListener('click', handleMarkingClick);
+        }
+
+        function handleMarkingClick(e) {
+            if (!state.markingMode) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.markingPoints.push({x, y});
+
+            const needsPoints = (state.markingMode === 'corner' || state.markingMode === 'downpipe') ? 1 : 2;
+
+            // Draw temporary marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(x, y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            if (state.markingPoints.length < needsPoints) {
+                // Need more points
+                const status = document.getElementById('markingStatus');
+                status.textContent = `👆 Tap bottom-right corner of ${state.markingMode}`;
+            } else {
+                // Complete the obstacle
+                completeObstacleMarking();
             }
         }
 
-        function displayResults() {
-            const panel = document.getElementById('resultsPanel');
-            const list = document.getElementById('detectionsList');
+        function completeObstacleMarking() {
+            const type = state.markingMode;
+            const points = state.markingPoints;
 
-            // First, draw the detected objects on the canvas
+            let obstacle;
+
+            if (type === 'corner' || type === 'downpipe') {
+                // Point obstacle - use a small fixed size
+                const pointSize = 20;
+                obstacle = {
+                    type: type,
+                    x: points[0].x - pointSize / 2,
+                    y: points[0].y - pointSize / 2,
+                    width: pointSize,
+                    height: pointSize
+                };
+            } else {
+                // Rectangle obstacle
+                const x1 = Math.min(points[0].x, points[1].x);
+                const y1 = Math.min(points[0].y, points[1].y);
+                const x2 = Math.max(points[0].x, points[1].x);
+                const y2 = Math.max(points[0].y, points[1].y);
+
+                obstacle = {
+                    type: type,
+                    x: x1,
+                    y: y1,
+                    width: x2 - x1,
+                    height: y2 - y1
+                };
+            }
+
+            state.obstacles.push(obstacle);
+
+            // Redraw canvas with all obstacles
+            redrawCanvasWithObstacles();
+
+            // Update obstacle list
+            updateObstaclesList();
+
+            // Reset marking mode
+            cancelMarking();
+
+            // Show calculate button
+            document.getElementById('calculateBtn').style.display = 'block';
+
+            const status = document.getElementById('markingStatus');
+            status.classList.add('active');
+            status.textContent = `✅ ${type} marked! Add more obstacles or click Calculate.`;
+        }
+
+        function cancelMarking() {
+            state.markingMode = null;
+            state.markingPoints = [];
+            state.canvas.removeEventListener('click', handleMarkingClick);
+
+            const status = document.getElementById('markingStatus');
+            status.classList.remove('active');
+            status.textContent = 'Select an obstacle type below to start marking';
+        }
+
+        function updateObstaclesList() {
+            const list = document.getElementById('obstaclesListContent');
+            const container = document.getElementById('obstaclesList');
+
+            if (state.obstacles.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+
+            list.innerHTML = state.obstacles.map((obs, index) => `
+                <div class="obstacle-item">
+                    <div>
+                        <strong>${index + 1}. ${obs.type}</strong> -
+                        Position: (${Math.round(obs.x)}, ${Math.round(obs.y)})
+                        Size: ${Math.round(obs.width)}×${Math.round(obs.height)}px
+                    </div>
+                    <button class="obstacle-delete-btn" onclick="deleteObstacle(${index})">
+                        Delete
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteObstacle(index) {
+            state.obstacles.splice(index, 1);
+            updateObstaclesList();
+            redrawCanvasWithObstacles();
+
+            if (state.obstacles.length === 0) {
+                document.getElementById('calculateBtn').style.display = 'none';
+            }
+        }
+
+        function redrawCanvasWithObstacles() {
+            // Clear and redraw base
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
 
-            // Draw each detected object with bright colors
-            state.detections.forEach((obj, index) => {
-                const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00'];
+            // Draw position marker
+            if (state.position) {
+                drawPositionMarker(state.position.x, state.position.y);
+            }
+
+            // Draw all obstacles
+            const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800'];
+            state.obstacles.forEach((obs, index) => {
                 const color = colors[index % colors.length];
 
                 state.ctx.strokeStyle = color;
-                state.ctx.lineWidth = 5;
-                state.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+                state.ctx.lineWidth = 4;
+                state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 
                 // Label
                 state.ctx.fillStyle = color;
-                state.ctx.font = 'bold 24px Arial';
-                state.ctx.fillText(`${index + 1}: ${obj.type}`, obj.x + 5, obj.y + 30);
+                state.ctx.font = 'bold 20px Arial';
+                state.ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 25);
             });
-
-            // Redraw position marker
-            if (state.position) {
-                state.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                state.ctx.strokeStyle = '#ff0000';
-                state.ctx.lineWidth = 5;
-                state.ctx.beginPath();
-                state.ctx.arc(state.position.x, state.position.y, 30, 0, Math.PI * 2);
-                state.ctx.fill();
-                state.ctx.stroke();
-            }
-
-            // Show list
-            if (state.detections.length === 0) {
-                list.innerHTML = '<p>No objects detected.</p>';
-            } else {
-                list.innerHTML = state.detections.map((obj, i) => `
-                    <div class="detection-item">
-                        <strong>${i + 1}. ${obj.type}</strong> -
-                        Confidence: ${(obj.confidence * 100).toFixed(0)}% -
-                        Box: ${obj.x.toFixed(0)},${obj.y.toFixed(0)} (${obj.width.toFixed(0)}×${obj.height.toFixed(0)})
-                    </div>
-                `).join('');
-            }
-
-            panel.classList.add('active');
-            document.getElementById('showClearancesBtn').style.display = 'block';
         }
 
-        function showClearanceZones() {
+        function calculateClearances() {
+            if (!state.position || !state.pxPerMM) {
+                alert('Missing position or calibration data');
+                return;
+            }
+
+            const brand = document.getElementById('brandSelect').value;
+            const rules = CLEARANCE_RULES[brand][state.mode];
+
+            // Calculate clearance zones for each obstacle
+            state.zones = {
+                prohibited: [],
+                safe: []
+            };
+
+            state.obstacles.forEach(obs => {
+                const clearanceMM = getClearanceForObject(obs.type, rules);
+                if (clearanceMM === null) return;
+
+                const clearancePx = clearanceMM * state.pxPerMM;
+
+                // Calculate zone based on obstacle type
+                let zoneX, zoneY, zoneMaxX, zoneMaxY;
+
+                if (obs.type === 'corner' || obs.type === 'downpipe') {
+                    // Circular zone for point obstacles
+                    const centerX = obs.x + obs.width / 2;
+                    const centerY = obs.y + obs.height / 2;
+
+                    zoneX = centerX - clearancePx;
+                    zoneY = centerY - clearancePx;
+                    zoneMaxX = centerX + clearancePx;
+                    zoneMaxY = centerY + clearancePx;
+                } else {
+                    // Directional zone for rectangular obstacles
+                    const flueLeft = state.position.x < obs.x;
+                    const flueRight = state.position.x > obs.x + obs.width;
+                    const flueAbove = state.position.y < obs.y;
+                    const flueBelow = state.position.y > obs.y + obs.height;
+
+                    zoneX = flueLeft ? obs.x - clearancePx : obs.x - clearancePx * 0.3;
+                    zoneY = flueAbove ? obs.y - clearancePx : obs.y - clearancePx * 0.3;
+                    zoneMaxX = flueRight ? obs.x + obs.width + clearancePx : obs.x + obs.width + clearancePx * 0.3;
+                    zoneMaxY = flueBelow ? obs.y + obs.height + clearancePx : obs.y + obs.height + clearancePx * 0.3;
+                }
+
+                // Clamp to image boundaries
+                const clampedX = Math.max(0, zoneX);
+                const clampedY = Math.max(0, zoneY);
+                const clampedMaxX = Math.min(state.canvas.width, zoneMaxX);
+                const clampedMaxY = Math.min(state.canvas.height, zoneMaxY);
+
+                const finalWidth = clampedMaxX - clampedX;
+                const finalHeight = clampedMaxY - clampedY;
+
+                if (finalWidth > 0 && finalHeight > 0) {
+                    state.zones.prohibited.push({
+                        x: clampedX,
+                        y: clampedY,
+                        width: finalWidth,
+                        height: finalHeight,
+                        reason: `${clearanceMM}mm clearance from ${obs.type}`,
+                        objectType: obs.type
+                    });
+                }
+            });
+
+            // Draw zones and check compliance
             drawClearanceZones();
-            document.getElementById('showClearancesBtn').style.display = 'none';
+            checkCompliance();
+
+            // Show results panel
+            document.getElementById('resultsPanel').classList.add('active');
+        }
+
+        function getClearanceForObject(objectType, rules) {
+            const mapping = {
+                window: "window",
+                door: "door",
+                corner: "corner",
+                soffit: "soffit",
+                vent: "vent",
+                downpipe: "downpipe"
+            };
+
+            const ruleKey = mapping[objectType];
+            return ruleKey ? (rules[ruleKey] ?? null) : null;
+        }
+
+        function checkCompliance() {
+            if (!state.position || !state.zones) return;
+
+            let hasConflict = false;
+
+            // Check if position is inside any prohibited zone
+            for (const zone of state.zones.prohibited) {
+                if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
+                    // Check circular zone
+                    const centerX = zone.x + zone.width / 2;
+                    const centerY = zone.y + zone.height / 2;
+                    const radius = zone.width / 2;
+                    const distance = Math.sqrt(
+                        Math.pow(state.position.x - centerX, 2) +
+                        Math.pow(state.position.y - centerY, 2)
+                    );
+                    if (distance < radius) {
+                        hasConflict = true;
+                        break;
+                    }
+                } else {
+                    // Check rectangular zone
+                    if (state.position.x >= zone.x &&
+                        state.position.x <= zone.x + zone.width &&
+                        state.position.y >= zone.y &&
+                        state.position.y <= zone.y + zone.height) {
+                        hasConflict = true;
+                        break;
+                    }
+                }
+            }
+
+            const resultDiv = document.getElementById('complianceResult');
+            if (hasConflict) {
+                resultDiv.className = 'compliance-fail';
+                resultDiv.innerHTML = '❌ FAIL - Position conflicts with clearance zones!<br><br>The flue/boiler position violates minimum clearance requirements.';
+            } else {
+                resultDiv.className = 'compliance-pass';
+                resultDiv.innerHTML = '✅ PASS - Position complies with clearance requirements!<br><br>The flue/boiler can be safely installed at this location.';
+            }
         }
 
         function drawCircularClearance(x, y, radiusPx, color, dashPattern) {
@@ -942,21 +1253,24 @@
 
         function drawClearanceZones() {
             // Redraw base
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
 
             if (!state.zones) return;
-            
-            // Draw detected objects first (outline them)
-            state.ctx.strokeStyle = '#4299e1';
-            state.ctx.lineWidth = 3;
-            state.detections.forEach(obj => {
-                state.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
-                
+
+            // Draw obstacles first
+            const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800'];
+            state.obstacles.forEach((obs, index) => {
+                const color = colors[index % colors.length];
+                state.ctx.strokeStyle = color;
+                state.ctx.lineWidth = 3;
+                state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
                 // Label the object
-                state.ctx.fillStyle = '#4299e1';
-                state.ctx.font = 'bold 14px Arial';
-                state.ctx.fillText(obj.type, obj.x + 5, obj.y + 15);
+                state.ctx.fillStyle = color;
+                state.ctx.font = 'bold 16px Arial';
+                state.ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 22);
             });
             
             const prohibitedFill = 'rgba(245, 101, 101, 0.3)';
@@ -1054,15 +1368,17 @@
             state.pxPerMM = null;
             state.position = null;
             state.mode = null;
-            state.detections = [];
+            state.obstacles = [];
+            state.markingMode = null;
+            state.markingPoints = [];
             state.zones = null;
-            
+
             if (state.photo) {
                 state.ctx.drawImage(state.photo, 0, 0);
             }
-            
+
             updatePointsDisplay();
-            
+
             document.getElementById('tapStatus').classList.remove('active');
             document.getElementById('tapStatus').classList.remove('warning');
             document.getElementById('tapStatus').textContent = 'Choose calibration method below';
@@ -1070,11 +1386,12 @@
             document.getElementById('pointsDisplay').style.display = 'none';
             document.getElementById('analysisCard').style.display = 'none';
             document.getElementById('positionInstructions').style.display = 'none';
-            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('obstacleMarkingSection').style.display = 'none';
             document.getElementById('resultsPanel').classList.remove('active');
-            
+
             state.canvas.removeEventListener('click', handleCalibrationClick);
             state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleMarkingClick);
         }
 
         function updatePointsDisplay() {
