@@ -149,7 +149,7 @@ export default {
       }
 
       // Calculate clearance zones
-      const zones = calculateClearanceZones(detections, rules, pxPerMM, position);
+      const zones = calculateClearanceZones(detections, rules, pxPerMM, position, imageWidth, imageHeight);
 
       return jsonResponse(
         {
@@ -311,7 +311,7 @@ async function detectObjects(imageBase64, prompt, apiKey) {
   }
 }
 
-function calculateClearanceZones(detections, rules, pxPerMM, position) {
+function calculateClearanceZones(detections, rules, pxPerMM, position, imageWidth, imageHeight) {
   const zones = {
     prohibited: [],
     restricted: [],
@@ -331,18 +331,67 @@ function calculateClearanceZones(detections, rules, pxPerMM, position) {
 
     const clearancePx = clearanceMM * pxPerMM;
 
-    // Create rectangular prohibited zone around the object
-    const zone = {
-      x: obj.x - clearancePx,
-      y: obj.y - clearancePx,
-      width: obj.width + clearancePx * 2,
-      height: obj.height + clearancePx * 2,
-      reason: `${clearanceMM}mm clearance from ${obj.type}`,
-      objectType: obj.type,
-      confidence: obj.confidence
-    };
+    // Calculate the center of the object
+    const objCenterX = obj.x + obj.width / 2;
+    const objCenterY = obj.y + obj.height / 2;
 
-    zones.prohibited.push(zone);
+    // Calculate direction vector from flue to object center
+    const dx = objCenterX - position.x;
+    const dy = objCenterY - position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Determine which sides of the object face the flue
+    // This creates a more accurate directional clearance zone
+    let zoneX, zoneY, zoneMaxX, zoneMaxY;
+
+    if (obj.type === 'corner') {
+      // For corners, create a circular zone (handled by frontend)
+      // But we still need to provide a bounding box
+      zoneX = obj.x - clearancePx;
+      zoneY = obj.y - clearancePx;
+      zoneMaxX = obj.x + obj.width + clearancePx;
+      zoneMaxY = obj.y + obj.height + clearancePx;
+    } else {
+      // For other objects, create a directional zone
+      // Extend clearance more on the side facing the flue
+
+      // Determine if flue is to the left/right of object
+      const flueLeft = position.x < obj.x;
+      const flueRight = position.x > obj.x + obj.width;
+      const flueAbove = position.y < obj.y;
+      const flueBelow = position.y > obj.y + obj.height;
+
+      // Extend clearance in the direction of the flue
+      zoneX = flueLeft ? obj.x - clearancePx : obj.x - clearancePx * 0.3;
+      zoneY = flueAbove ? obj.y - clearancePx : obj.y - clearancePx * 0.3;
+      zoneMaxX = flueRight ? obj.x + obj.width + clearancePx : obj.x + obj.width + clearancePx * 0.3;
+      zoneMaxY = flueBelow ? obj.y + obj.height + clearancePx : obj.y + obj.height + clearancePx * 0.3;
+    }
+
+    // Clamp to image boundaries
+    const clampedX = Math.max(0, zoneX);
+    const clampedY = Math.max(0, zoneY);
+    const clampedMaxX = imageWidth ? Math.min(imageWidth, zoneMaxX) : zoneMaxX;
+    const clampedMaxY = imageHeight ? Math.min(imageHeight, zoneMaxY) : zoneMaxY;
+
+    // Calculate final width and height after clamping
+    const finalWidth = clampedMaxX - clampedX;
+    const finalHeight = clampedMaxY - clampedY;
+
+    // Only add zone if it has positive dimensions
+    if (finalWidth > 0 && finalHeight > 0) {
+      const zone = {
+        x: clampedX,
+        y: clampedY,
+        width: finalWidth,
+        height: finalHeight,
+        reason: `${clearanceMM}mm clearance from ${obj.type}`,
+        objectType: obj.type,
+        confidence: obj.confidence
+      };
+
+      zones.prohibited.push(zone);
+    }
   });
 
   return zones;
