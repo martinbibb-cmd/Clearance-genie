@@ -664,52 +664,74 @@
 
         function startFlueMode() {
             state.mode = 'flue';
+            state.position = null; // Clear any previous position
             document.getElementById('positionInstructions').style.display = 'block';
             document.getElementById('positionStatus').textContent = '🔥 Tap where you want the flue terminal';
-            
-            // Remove any existing listeners first
+            document.getElementById('analyzeBtn').disabled = true;
+
+            // Remove ALL existing listeners first (cleanup)
             state.canvas.removeEventListener('click', handlePositionClick);
             state.canvas.removeEventListener('click', handleCalibrationClick);
-            
+
             // Add fresh listener
             state.canvas.addEventListener('click', handlePositionClick);
-            
+
             // Make sure canvas is clickable
             state.canvas.style.cursor = 'crosshair';
+            state.canvas.style.pointerEvents = 'auto';
+
+            console.log('Flue mode started - canvas ready for position click');
         }
 
         function startBoilerMode() {
             state.mode = 'boiler';
+            state.position = null; // Clear any previous position
             document.getElementById('positionInstructions').style.display = 'block';
             document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler will be located';
-            
-            // Remove any existing listeners first
+            document.getElementById('analyzeBtn').disabled = true;
+
+            // Remove ALL existing listeners first (cleanup)
             state.canvas.removeEventListener('click', handlePositionClick);
             state.canvas.removeEventListener('click', handleCalibrationClick);
-            
+
             // Add fresh listener
             state.canvas.addEventListener('click', handlePositionClick);
-            
+
             // Make sure canvas is clickable
             state.canvas.style.cursor = 'crosshair';
+            state.canvas.style.pointerEvents = 'auto';
+
+            console.log('Boiler mode started - canvas ready for position click');
         }
 
         function handlePositionClick(e) {
-            if (state.isCalibrating) return;
-            
+            console.log('Position click detected!', e);
+
+            if (state.isCalibrating) {
+                console.log('Ignoring click - still calibrating');
+                return;
+            }
+
+            if (!state.mode) {
+                console.log('Ignoring click - no mode set');
+                return;
+            }
+
             const rect = state.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * state.canvasScale;
             const y = (e.clientY - rect.top) * state.canvasScale;
-            
+
+            console.log('Position marked at:', x, y, 'Canvas scale:', state.canvasScale);
+
             state.position = {x, y};
-            
+
             // Redraw everything
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
             drawPositionMarker(x, y);
-            
+
             document.getElementById('analyzeBtn').disabled = false;
-            
+
             const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
             document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked. Click "Calculate Clearance Zones" to analyze.`;
         }
