@@ -244,10 +244,15 @@
         <h2>Step 1: Load Photo</h2>
         <p style="margin: 10px 0; color: #666;">Take or upload a photo with your blue calibration card visible</p>
         
-        <input type="file" id="photoInput" accept="image/*" capture="environment">
-        <button class="btn" onclick="document.getElementById('photoInput').click()">
-            📷 Take/Upload Photo
-        </button>
+        <input type="file" id="photoInput" accept="image/*">
+        <div class="button-group">
+            <button class="btn" onclick="document.getElementById('photoInput').click()">
+                📁 Choose Photo
+            </button>
+            <button class="btn" onclick="openCamera()">
+                📷 Take Photo
+            </button>
+        </div>
 
         <div class="instructions">
             <h3>📋 How to take the photo:</h3>
@@ -268,18 +273,21 @@
         <h2>Step 2: Calibrate Scale</h2>
         
         <div class="status" id="tapStatus">
-            Tap the 4 corners of your calibration card in order: Top-Left → Top-Right → Bottom-Right → Bottom-Left
-        </div>
-
-        <div class="calibration-points" id="pointsDisplay">
-            <p>Points tapped: <span id="pointCount">0</span>/4</p>
+            Choose calibration method below
         </div>
 
         <div class="button-group">
-            <button class="btn btn-secondary" id="calibrateBtn" onclick="startCalibration()">
-                🎯 Start Calibration
+            <button class="btn btn-secondary" onclick="autoDetectCard()">
+                🤖 Auto-Detect Card
             </button>
-            <button class="btn btn-danger" onclick="resetCalibration()">
+            <button class="btn" onclick="startManualCalibration()">
+                👆 Manual 4-Point
+            </button>
+        </div>
+
+        <div class="calibration-points" id="pointsDisplay" style="display: none;">
+            <p>Points tapped: <span id="pointCount">0</span>/4</p>
+            <button class="btn btn-danger" onclick="resetCalibration()" style="margin-top: 10px;">
                 ↺ Reset Points
             </button>
         </div>
@@ -289,20 +297,38 @@
             <p>Scale: <span id="scaleDisplay">-</span> pixels/mm</p>
             <p>Card Width: <span id="cardWidthDisplay">-</span> pixels (should be ~85.6mm)</p>
             <p>Card Height: <span id="cardHeightDisplay">-</span> pixels (should be ~53.98mm)</p>
+            <p>Accuracy: <span id="accuracyDisplay">-</span></p>
+            <button class="btn" onclick="resetCalibration()" style="margin-top: 10px;">
+                🔄 Recalibrate
+            </button>
         </div>
     </div>
 
     <div class="card" id="analysisCard" style="display: none;">
-        <h2>Step 3: Analyze Clearances</h2>
+        <h2>Step 3: Choose Analysis Type</h2>
         
         <div class="instructions">
-            <h3>🎯 Mark Flue Position</h3>
-            <p style="margin: 10px 0;">Tap on the photo where you want to place the flue terminal</p>
+            <h3>What do you want to check?</h3>
         </div>
 
-        <button class="btn btn-secondary" id="analyzeBtn" onclick="analyzeClearances()" disabled>
-            🔍 Calculate Clearance Zones
-        </button>
+        <div class="button-group">
+            <button class="btn btn-secondary" onclick="startFlueMode()">
+                🔥 Flue Clearances
+            </button>
+            <button class="btn btn-secondary" onclick="startBoilerMode()">
+                🔧 Boiler Clearances
+            </button>
+        </div>
+
+        <div id="positionInstructions" style="display: none;">
+            <div class="status active" id="positionStatus">
+                👆 Tap on the image to mark the position
+            </div>
+            
+            <button class="btn" id="analyzeBtn" onclick="analyzeClearances()" disabled>
+                🔍 Calculate Clearance Zones
+            </button>
+        </div>
 
         <div class="status" id="analysisStatus"></div>
     </div>
@@ -318,7 +344,8 @@
         isCalibrating: false,
         pxPerMM: null,
         fluePosition: null,
-        canvasScale: 1
+        canvasScale: 1,
+        mode: null // 'flue' or 'boiler'
     };
 
     // Constants
@@ -327,6 +354,14 @@
 
     // Initialize
     document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
+
+    function openCamera() {
+        const input = document.getElementById('photoInput');
+        input.setAttribute('capture', 'environment');
+        input.click();
+        // Remove capture attribute after click so "choose photo" still works
+        setTimeout(() => input.removeAttribute('capture'), 100);
+    }
 
     function handlePhotoUpload(e) {
         const file = e.target.files[0];
@@ -365,20 +400,90 @@
         state.canvasScale = canvas.width / rect.width;
     }
 
-    function startCalibration() {
+    function startManualCalibration() {
         state.isCalibrating = true;
         state.calibrationPoints = [];
         updatePointsDisplay();
+        
+        document.getElementById('pointsDisplay').style.display = 'block';
         
         const status = document.getElementById('tapStatus');
         status.classList.add('active');
         status.classList.remove('warning');
         status.textContent = 'Tap corner 1/4: Top-Left corner of card';
         
-        document.getElementById('calibrateBtn').disabled = true;
-        
         // Add click listener to canvas
         state.canvas.addEventListener('click', handleCalibrationClick);
+    }
+
+    function autoDetectCard() {
+        const status = document.getElementById('tapStatus');
+        status.classList.add('active');
+        status.textContent = '🔍 Searching for blue card...';
+        
+        // Get image data
+        const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+        const data = imageData.data;
+        
+        // Find blue regions (looking for calibration card)
+        const bluePixels = [];
+        
+        for (let y = 0; y < state.canvas.height; y++) {
+            for (let x = 0; x < state.canvas.width; x++) {
+                const i = (y * state.canvas.width + x) * 4;
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // Check if pixel is blue (b > r and b > g)
+                // Adjust thresholds based on your specific card color
+                if (b > r + 30 && b > g + 30 && b > 100) {
+                    bluePixels.push({x, y});
+                }
+            }
+        }
+        
+        if (bluePixels.length < 100) {
+            status.classList.add('warning');
+            status.textContent = '❌ Could not find blue card. Try manual calibration or adjust lighting.';
+            return;
+        }
+        
+        // Find bounding box of blue region
+        const minX = Math.min(...bluePixels.map(p => p.x));
+        const maxX = Math.max(...bluePixels.map(p => p.x));
+        const minY = Math.min(...bluePixels.map(p => p.y));
+        const maxY = Math.max(...bluePixels.map(p => p.y));
+        
+        const width = maxX - minX;
+        const height = maxY - minY;
+        const aspectRatio = width / height;
+        const expectedRatio = CARD_WIDTH_MM / CARD_HEIGHT_MM; // ~1.585
+        
+        // Check if aspect ratio is reasonable for a credit card
+        if (Math.abs(aspectRatio - expectedRatio) > 0.3) {
+            status.classList.add('warning');
+            status.textContent = `⚠️ Found blue region but shape doesn't match card (ratio: ${aspectRatio.toFixed(2)}). Try manual calibration.`;
+            
+            // Still draw what we found for debugging
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 3;
+            state.ctx.strokeRect(minX, minY, width, height);
+            return;
+        }
+        
+        // Set calibration points as corners of bounding box
+        state.calibrationPoints = [
+            {x: minX, y: minY},        // Top-left
+            {x: maxX, y: minY},        // Top-right
+            {x: maxX, y: maxY},        // Bottom-right
+            {x: minX, y: maxY}         // Bottom-left
+        ];
+        
+        status.textContent = '✅ Card detected! Calculating scale...';
+        
+        // Calculate calibration
+        setTimeout(() => calculateCalibration(), 500);
     }
 
     function handleCalibrationClick(e) {
@@ -436,9 +541,21 @@
         // Average the two (should be similar if photo is straight-on)
         state.pxPerMM = (pxPerMMWidth + pxPerMMHeight) / 2;
         
+        // Calculate accuracy metric (how much width and height differ)
+        const skew = Math.abs(pxPerMMWidth - pxPerMMHeight) / state.pxPerMM * 100;
+        let accuracyRating = '';
+        
+        if (skew < 5) {
+            accuracyRating = '✅ Excellent (< 5% skew)';
+        } else if (skew < 10) {
+            accuracyRating = '⚠️ Good (< 10% skew)';
+        } else {
+            accuracyRating = '❌ Poor - Consider retaking photo more straight-on';
+        }
+        
         // Draw calibration rectangle
-        state.ctx.strokeStyle = '#48bb78';
-        state.ctx.lineWidth = 3;
+        state.ctx.strokeStyle = skew < 10 ? '#48bb78' : '#f56565';
+        state.ctx.lineWidth = 4;
         state.ctx.beginPath();
         state.ctx.moveTo(points[0].x, points[0].y);
         state.ctx.lineTo(points[1].x, points[1].y);
@@ -446,6 +563,20 @@
         state.ctx.lineTo(points[3].x, points[3].y);
         state.ctx.closePath();
         state.ctx.stroke();
+        
+        // Draw corner markers
+        points.forEach((point, i) => {
+            state.ctx.fillStyle = skew < 10 ? '#48bb78' : '#f56565';
+            state.ctx.beginPath();
+            state.ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+            state.ctx.fill();
+            
+            state.ctx.fillStyle = 'white';
+            state.ctx.font = 'bold 14px Arial';
+            state.ctx.textAlign = 'center';
+            state.ctx.textBaseline = 'middle';
+            state.ctx.fillText(i + 1, point.x, point.y);
+        });
         
         // Update UI
         state.isCalibrating = false;
@@ -459,19 +590,27 @@
         document.getElementById('scaleDisplay').textContent = state.pxPerMM.toFixed(2);
         document.getElementById('cardWidthDisplay').textContent = avgWidthPx.toFixed(1);
         document.getElementById('cardHeightDisplay').textContent = avgHeightPx.toFixed(1);
-        
-        document.getElementById('calibrateBtn').disabled = false;
+        document.getElementById('accuracyDisplay').textContent = accuracyRating;
         
         // Enable analysis
         document.getElementById('analysisCard').style.display = 'block';
-        state.canvas.addEventListener('click', handleFluePositionClick);
-        
-        const analysisStatus = document.getElementById('analysisStatus');
-        analysisStatus.classList.add('active');
-        analysisStatus.textContent = '👆 Tap on the image to mark where you want the flue terminal';
     }
 
-    function handleFluePositionClick(e) {
+    function startFlueMode() {
+        state.mode = 'flue';
+        document.getElementById('positionInstructions').style.display = 'block';
+        document.getElementById('positionStatus').textContent = '🔥 Tap where you want the flue terminal';
+        state.canvas.addEventListener('click', handlePositionClick);
+    }
+
+    function startBoilerMode() {
+        state.mode = 'boiler';
+        document.getElementById('positionInstructions').style.display = 'block';
+        document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler will be located';
+        state.canvas.addEventListener('click', handlePositionClick);
+    }
+
+    function handlePositionClick(e) {
         if (state.isCalibrating) return;
         
         const rect = state.canvas.getBoundingClientRect();
@@ -506,8 +645,8 @@
         // Enable analyze button
         document.getElementById('analyzeBtn').disabled = false;
         
-        const status = document.getElementById('analysisStatus');
-        status.textContent = '✅ Flue position marked. Click "Calculate Clearance Zones" to analyze.';
+        const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
+        document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked. Click "Calculate Clearance Zones" to analyze.`;
     }
 
     function drawCalibrationOverlay() {
@@ -587,7 +726,10 @@
         state.ctx.stroke();
         
         const status = document.getElementById('analysisStatus');
-        status.textContent = `✅ Basic clearance zone shown (300mm radius). Ready for AI integration and brand-specific rules.`;
+        status.classList.add('active');
+        
+        const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
+        status.textContent = `✅ Basic clearance zone shown for ${modeText} (300mm radius). Ready for AI integration and brand-specific rules.`;
     }
 
     function resetCalibration() {
@@ -595,6 +737,7 @@
         state.isCalibrating = false;
         state.pxPerMM = null;
         state.fluePosition = null;
+        state.mode = null;
         
         if (state.photo) {
             state.ctx.drawImage(state.photo, 0, 0);
@@ -603,13 +746,16 @@
         updatePointsDisplay();
         
         document.getElementById('tapStatus').classList.remove('active');
+        document.getElementById('tapStatus').classList.remove('warning');
+        document.getElementById('tapStatus').textContent = 'Choose calibration method below';
         document.getElementById('calibrationInfo').classList.remove('active');
-        document.getElementById('calibrateBtn').disabled = false;
+        document.getElementById('pointsDisplay').style.display = 'none';
         document.getElementById('analysisCard').style.display = 'none';
+        document.getElementById('positionInstructions').style.display = 'none';
         document.getElementById('analyzeBtn').disabled = true;
         
         state.canvas.removeEventListener('click', handleCalibrationClick);
-        state.canvas.removeEventListener('click', handleFluePositionClick);
+        state.canvas.removeEventListener('click', handlePositionClick);
     }
 
     function updatePointsDisplay() {
