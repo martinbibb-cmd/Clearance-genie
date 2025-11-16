@@ -1,17 +1,13 @@
-name = “clearance-genie-worker”
-main = “worker/index.js”
-compatibility_date = “2025-11-16”
+name = "clearance-genie-worker"
+main = "worker/index.js"
+compatibility_date = "2025-11-16"
 
 [observability]
 enabled = true
 
-# Environment variables
-
 [vars]
-ALLOWED_ORIGINS = “https://martinbibb-cmd.github.io”
-
-# Preview environment (for local testing)
+ALLOWED_ORIGINS = "https://martinbibb-cmd.github.io"
 
 [env.preview]
 [env.preview.vars]
-ALLOWED_ORIGINS = “*”
+ALLOWED_ORIGINS = "*"
