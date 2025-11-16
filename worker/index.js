@@ -88,7 +88,9 @@ export default {
         pxPerMM, // calibration from card
         mode, // flue or boiler
         brand = "worcester",
-        position // {x, y} where user tapped
+        position, // {x, y} where user tapped
+        imageWidth,
+        imageHeight
       } = data;
 
       // Validate inputs
@@ -124,6 +126,22 @@ export default {
 
       // Call OpenAI Vision API
       const detections = await detectObjects(image, prompt, env.OPENAI_API_KEY);
+
+      // Scale coordinates if OpenAI returned smaller dimensions
+      // OpenAI Vision typically analyzes at max 2048px
+      const OPENAI_MAX_DIM = 2048;
+      const scaleFactor = Math.max(
+        imageWidth / OPENAI_MAX_DIM,
+        imageHeight / OPENAI_MAX_DIM,
+        1
+      );
+
+      detections.forEach(obj => {
+        obj.x *= scaleFactor;
+        obj.y *= scaleFactor;
+        obj.width *= scaleFactor;
+        obj.height *= scaleFactor;
+      });
 
       // Calculate clearance zones
       const zones = calculateClearanceZones(detections, rules, pxPerMM, position);
@@ -218,6 +236,16 @@ async function detectObjects(imageBase64, prompt, apiKey) {
   const imageUrl = imageBase64.startsWith("data:")
     ? imageBase64
     : `data:image/jpeg;base64,${imageBase64}`;
+
+  // Extract image dimensions from base64 if possible
+  let imageDimensions = null;
+  try {
+    const img = new Image();
+    img.src = imageUrl;
+    // Note: We can't get dimensions server-side, so we'll need client to send them
+  } catch (e) {
+    // Silent fail
+  }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
