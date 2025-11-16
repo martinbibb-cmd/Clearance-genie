@@ -744,7 +744,13 @@
                 }
                 
                 const result = await response.json();
-                
+                console.log('Worker response:', result);
+                console.log('Detections:', result.detections);
+                console.log('Zones:', result.zones);
+                console.log('Canvas dimensions:', state.canvas.width, state.canvas.height);
+                console.log('Position:', state.position);
+                console.log('pxPerMM:', state.pxPerMM);
+
                 if (!result.success) {
                     throw new Error(result.error || 'Unknown error');
                 }
