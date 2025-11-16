@@ -666,14 +666,32 @@
             state.mode = 'flue';
             document.getElementById('positionInstructions').style.display = 'block';
             document.getElementById('positionStatus').textContent = '🔥 Tap where you want the flue terminal';
+            
+            // Remove any existing listeners first
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            
+            // Add fresh listener
             state.canvas.addEventListener('click', handlePositionClick);
+            
+            // Make sure canvas is clickable
+            state.canvas.style.cursor = 'crosshair';
         }
 
         function startBoilerMode() {
             state.mode = 'boiler';
             document.getElementById('positionInstructions').style.display = 'block';
             document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler will be located';
+            
+            // Remove any existing listeners first
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            
+            // Add fresh listener
             state.canvas.addEventListener('click', handlePositionClick);
+            
+            // Make sure canvas is clickable
+            state.canvas.style.cursor = 'crosshair';
         }
 
         function handlePositionClick(e) {
