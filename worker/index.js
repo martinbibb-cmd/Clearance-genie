@@ -127,21 +127,51 @@ export default {
       // Call OpenAI Vision API
       const detections = await detectObjects(image, prompt, env.OPENAI_API_KEY);
 
-      // Scale coordinates if OpenAI returned smaller dimensions
-      // OpenAI Vision typically analyzes at max 2048px
-      const OPENAI_MAX_DIM = 2048;
-      const scaleFactor = Math.max(
-        imageWidth / OPENAI_MAX_DIM,
-        imageHeight / OPENAI_MAX_DIM,
-        1
-      );
+      // Scale coordinates intelligently - OpenAI resizes images unpredictably
+      // We need to detect what size OpenAI actually used based on the coordinates
+      if (detections.length > 0 && imageWidth && imageHeight) {
+        // Find the maximum coordinates to infer OpenAI's analyzed dimensions
+        let maxX = 0;
+        let maxY = 0;
 
-      detections.forEach(obj => {
-        obj.x *= scaleFactor;
-        obj.y *= scaleFactor;
-        obj.width *= scaleFactor;
-        obj.height *= scaleFactor;
-      });
+        detections.forEach(obj => {
+          maxX = Math.max(maxX, obj.x + obj.width);
+          maxY = Math.max(maxY, obj.y + obj.height);
+        });
+
+        console.log('Detection coordinate ranges:', { maxX, maxY });
+        console.log('Original image dimensions:', { imageWidth, imageHeight });
+
+        // Detect OpenAI's analyzed size based on coordinate ranges
+        // If coordinates are very small compared to image, OpenAI resized aggressively
+        let scaleFactor = 1;
+
+        if (maxX > 0 && maxY > 0) {
+          // Calculate scale factors for each dimension
+          const scaleX = imageWidth / maxX;
+          const scaleY = imageHeight / maxY;
+
+          // Use the smaller scale to be conservative
+          // Only scale if there's significant difference (> 10%)
+          const avgScale = (scaleX + scaleY) / 2;
+
+          if (avgScale > 1.1) {
+            scaleFactor = avgScale;
+            console.log('Applying scale factor:', scaleFactor);
+
+            detections.forEach(obj => {
+              obj.x *= scaleFactor;
+              obj.y *= scaleFactor;
+              obj.width *= scaleFactor;
+              obj.height *= scaleFactor;
+            });
+
+            console.log('Scaled detections:', detections);
+          } else {
+            console.log('Coordinates already in correct range, no scaling needed');
+          }
+        }
+      }
 
       // Calculate clearance zones
       const zones = calculateClearanceZones(detections, rules, pxPerMM, position);
