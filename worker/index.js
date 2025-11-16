@@ -63,22 +63,22 @@ export default {
 async fetch(request, env, ctx) {
 // CORS headers
 const corsHeaders = {
-‘Access-Control-Allow-Origin’: ‘*’,
-‘Access-Control-Allow-Methods’: ‘POST, OPTIONS’,
-‘Access-Control-Allow-Headers’: ‘Content-Type’,
+“Access-Control-Allow-Origin”: “*”,
+“Access-Control-Allow-Methods”: “POST, OPTIONS”,
+“Access-Control-Allow-Headers”: “Content-Type”,
 };
 
 ```
 // Handle CORS preflight
-if (request.method === 'OPTIONS') {
+if (request.method === "OPTIONS") {
   return new Response(null, { headers: corsHeaders });
 }
 
 // Only accept POST
-if (request.method !== 'POST') {
+if (request.method !== "POST") {
   return new Response(
-    JSON.stringify({ error: 'Method not allowed' }),
-    { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    JSON.stringify({ error: "Method not allowed" }),
+    { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
@@ -87,26 +87,26 @@ try {
   const {
     image,           // base64 image
     pxPerMM,         // calibration from card
-    mode,            // 'flue' or 'boiler'
-    brand = 'worcester',
+    mode,            // flue or boiler
+    brand = "worcester",
     position         // {x, y} where user tapped
   } = data;
 
   // Validate inputs
   if (!image) {
-    return jsonResponse({ error: 'Missing image' }, 400, corsHeaders);
+    return jsonResponse({ error: "Missing image" }, 400, corsHeaders);
   }
 
   if (!pxPerMM || pxPerMM <= 0) {
-    return jsonResponse({ error: 'Invalid calibration (pxPerMM)' }, 400, corsHeaders);
+    return jsonResponse({ error: "Invalid calibration (pxPerMM)" }, 400, corsHeaders);
   }
 
-  if (!mode || !['flue', 'boiler'].includes(mode)) {
-    return jsonResponse({ error: 'Invalid mode (must be flue or boiler)' }, 400, corsHeaders);
+  if (!mode || !["flue", "boiler"].includes(mode)) {
+    return jsonResponse({ error: "Invalid mode (must be flue or boiler)" }, 400, corsHeaders);
   }
 
   if (!env.OPENAI_API_KEY) {
-    return jsonResponse({ error: 'OpenAI API key not configured' }, 500, corsHeaders);
+    return jsonResponse({ error: "OpenAI API key not configured" }, 500, corsHeaders);
   }
 
   // Get clearance rules for this brand and mode
@@ -133,9 +133,9 @@ try {
   }, 200, corsHeaders);
 
 } catch (error) {
-  console.error('Worker error:', error);
+  console.error("Worker error:", error);
   return jsonResponse({
-    error: 'Internal server error',
+    error: "Internal server error",
     message: error.message
   }, 500, corsHeaders);
 }
@@ -145,7 +145,7 @@ try {
 };
 
 function buildDetectionPrompt(mode) {
-if (mode === ‘flue’) {
+if (mode === “flue”) {
 return `Analyze this exterior wall photo and identify all objects relevant for flue terminal placement.
 
 Detect and return coordinates for:
@@ -200,28 +200,28 @@ Return ONLY valid JSON in this exact format:
 
 async function detectObjects(imageBase64, prompt, apiKey) {
 // Prepare image for OpenAI (ensure proper format)
-const imageUrl = imageBase64.startsWith(‘data:’)
+const imageUrl = imageBase64.startsWith(“data:”)
 ? imageBase64
 : `data:image/jpeg;base64,${imageBase64}`;
 
-const response = await fetch(‘https://api.openai.com/v1/chat/completions’, {
-method: ‘POST’,
+const response = await fetch(“https://api.openai.com/v1/chat/completions”, {
+method: “POST”,
 headers: {
-‘Content-Type’: ‘application/json’,
-‘Authorization’: `Bearer ${apiKey}`
+“Content-Type”: “application/json”,
+“Authorization”: `Bearer ${apiKey}`
 },
 body: JSON.stringify({
-model: ‘gpt-4o-mini’,
+model: “gpt-4o-mini”,
 messages: [
 {
-role: ‘user’,
+role: “user”,
 content: [
 {
-type: ‘text’,
+type: “text”,
 text: prompt
 },
 {
-type: ‘image_url’,
+type: “image_url”,
 image_url: {
 url: imageUrl
 }
@@ -230,7 +230,7 @@ url: imageUrl
 }
 ],
 max_tokens: 1000,
-temperature: 0.1 // Low temperature for consistent detection
+temperature: 0.1
 })
 });
 
@@ -243,32 +243,32 @@ const result = await response.json();
 const content = result.choices?.[0]?.message?.content;
 
 if (!content) {
-throw new Error(‘No response from OpenAI’);
+throw new Error(“No response from OpenAI”);
 }
 
 // Parse JSON response (strip markdown if present)
 let jsonText = content.trim();
-if (jsonText.startsWith(’`json')) { jsonText = jsonText.replace(/`json\n?/, ‘’).replace(/\n?`$/, ''); } else if (jsonText.startsWith('`’)) {
-jsonText = jsonText.replace(/`\n?/, '').replace(/\n?`$/, ‘’);
+if (jsonText.startsWith(”`json")) { jsonText = jsonText.replace(/`json\n?/, “”).replace(/\n?`$/, ""); } else if (jsonText.startsWith("`”)) {
+jsonText = jsonText.replace(/`\n?/, "").replace(/\n?`$/, “”);
 }
 
 try {
 const parsed = JSON.parse(jsonText);
 return parsed.objects || [];
 } catch (e) {
-console.error(‘Failed to parse OpenAI response:’, jsonText);
+console.error(“Failed to parse OpenAI response:”, jsonText);
 return [];
 }
 }
 
 function calculateClearanceZones(detections, rules, pxPerMM, position) {
 const zones = {
-prohibited: [],  // Red zones - cannot place here
-restricted: [],  // Blue zones - plume kit only
-safe: []         // Green zones - all clear
+prohibited: [],
+restricted: [],
+safe: []
 };
 
-// If no position specified, can’t calculate zones
+// If no position specified, cannot calculate zones
 if (!position) {
 return zones;
 }
@@ -278,7 +278,7 @@ detections.forEach(obj => {
 const clearanceMM = getClearanceForObject(obj.type, rules);
 
 ```
-if (clearanceMM === null) return; // No rule for this object type
+if (clearanceMM === null) return;
 
 const clearancePx = clearanceMM * pxPerMM;
 
@@ -304,19 +304,19 @@ return zones;
 function getClearanceForObject(objectType, rules) {
 // Map object types to rule keys
 const mapping = {
-‘window’: ‘window’,
-‘door’: ‘door’,
-‘corner’: ‘corner’,
-‘soffit’: ‘soffit’,
-‘eaves’: ‘soffit’,
-‘vent’: ‘vent’,
-‘downpipe’: ‘downpipe’,
-‘boundary’: ‘boundary’,
-‘wall_left’: ‘wall_side’,
-‘wall_right’: ‘wall_side’,
-‘wall_back’: ‘wall_front’,
-‘ceiling’: ‘ceiling’,
-‘floor’: ‘floor’
+“window”: “window”,
+“door”: “door”,
+“corner”: “corner”,
+“soffit”: “soffit”,
+“eaves”: “soffit”,
+“vent”: “vent”,
+“downpipe”: “downpipe”,
+“boundary”: “boundary”,
+“wall_left”: “wall_side”,
+“wall_right”: “wall_side”,
+“wall_back”: “wall_front”,
+“ceiling”: “ceiling”,
+“floor”: “floor”
 };
 
 const ruleKey = mapping[objectType];
@@ -328,7 +328,7 @@ return new Response(JSON.stringify(data), {
 status,
 headers: {
 …corsHeaders,
-‘Content-Type’: ‘application/json’
+“Content-Type”: “application/json”
 }
 });
 }
