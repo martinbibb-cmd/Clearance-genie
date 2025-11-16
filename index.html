@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,650 +11,616 @@
             box-sizing: border-box;
         }
 
-```
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-        padding: 20px;
-        color: #333;
-    }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
 
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
-    h1 {
-        text-align: center;
-        color: white;
-        margin-bottom: 30px;
-        font-size: 2.5em;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-
-    .card {
-        background: white;
-        border-radius: 15px;
-        padding: 25px;
-        margin-bottom: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-
-    .btn {
-        background: #667eea;
-        color: white;
-        border: none;
-        padding: 15px 30px;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        width: 100%;
-        margin: 10px 0;
-        transition: all 0.3s ease;
-    }
-
-    .btn:hover {
-        background: #5568d3;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .btn-secondary {
-        background: #48bb78;
-    }
-
-    .btn-secondary:hover {
-        background: #38a169;
-    }
-
-    .btn-danger {
-        background: #f56565;
-    }
-
-    .btn-danger:hover {
-        background: #e53e3e;
-    }
-
-    input[type="file"] {
-        display: none;
-    }
-
-    .canvas-container {
-        position: relative;
-        width: 100%;
-        max-width: 100%;
-        margin: 20px 0;
-        border-radius: 10px;
-        overflow: hidden;
-        background: #f7fafc;
-        display: none;
-    }
-
-    .canvas-container.active {
-        display: block;
-    }
-
-    canvas {
-        display: block;
-        width: 100%;
-        height: auto;
-        cursor: crosshair;
-    }
-
-    .instructions {
-        background: #edf2f7;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        border-left: 4px solid #667eea;
-    }
-
-    .instructions h3 {
-        color: #667eea;
-        margin-bottom: 10px;
-    }
-
-    .instructions ol {
-        margin-left: 20px;
-    }
-
-    .instructions li {
-        margin: 8px 0;
-        line-height: 1.6;
-    }
-
-    .calibration-points {
-        background: #fff5f5;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        border-left: 4px solid #f56565;
-    }
-
-    .calibration-points p {
-        margin: 5px 0;
-        font-weight: 600;
-    }
-
-    .status {
-        background: #c6f6d5;
-        color: #22543d;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        font-weight: 600;
-        text-align: center;
-        display: none;
-    }
-
-    .status.active {
-        display: block;
-    }
-
-    .status.warning {
-        background: #feebc8;
-        color: #7c2d12;
-    }
-
-    .calibration-info {
-        background: #e6fffa;
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        border-left: 4px solid #38b2ac;
-        display: none;
-    }
-
-    .calibration-info.active {
-        display: block;
-    }
-
-    .calibration-info h4 {
-        color: #38b2ac;
-        margin-bottom: 10px;
-    }
-
-    .calibration-info p {
-        margin: 5px 0;
-        font-family: 'Courier New', monospace;
-    }
-
-    .button-group {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-    }
-
-    @media (max-width: 768px) {
         h1 {
-            font-size: 1.8em;
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f7fafc;
+            display: none;
+        }
+
+        .canvas-container.active {
+            display: block;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+
+        .instructions {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .calibration-points {
+            background: #fff5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #f56565;
+        }
+
+        .calibration-points p {
+            margin: 5px 0;
+            font-weight: 600;
+        }
+
+        .status {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+        }
+
+        .status.active {
+            display: block;
+        }
+
+        .status.warning {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .calibration-info {
+            background: #e6fffa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #38b2ac;
+            display: none;
+        }
+
+        .calibration-info.active {
+            display: block;
+        }
+
+        .calibration-info h4 {
+            color: #38b2ac;
+            margin-bottom: 10px;
+        }
+
+        .calibration-info p {
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+        }
+
         .button-group {
-            grid-template-columns: 1fr;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
-    }
 
-    .flue-marker {
-        position: absolute;
-        width: 40px;
-        height: 40px;
-        background: rgba(255, 0, 0, 0.5);
-        border: 3px solid #f56565;
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-    }
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
 
-    .clearance-zone {
-        position: absolute;
-        border: 2px dashed;
-        pointer-events: none;
-        opacity: 0.6;
-    }
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+        }
 
-    .zone-safe {
-        border-color: #48bb78;
-        background: rgba(72, 187, 120, 0.1);
-    }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
 
-    .zone-danger {
-        border-color: #f56565;
-        background: rgba(245, 101, 101, 0.1);
-    }
-</style>
-```
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
 
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-panel {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .results-panel.active {
+            display: block;
+        }
+
+        .results-panel h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .detection-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            border-left: 3px solid #667eea;
+        }
+
+        .detection-item strong {
+            color: #667eea;
+        }
+
+        .zone-legend {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .zone-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zone-color-box {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 2px solid #333;
+        }
+
+        .zone-red {
+            background: rgba(245, 101, 101, 0.5);
+        }
+
+        .zone-green {
+            background: rgba(72, 187, 120, 0.5);
+        }
+
+        .zone-blue {
+            background: rgba(66, 153, 225, 0.5);
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>🔥 Clearance Genie</h1>
 
-```
-    <div class="card">
-        <h2>Step 1: Load Photo</h2>
-        <p style="margin: 10px 0; color: #666;">Take or upload a photo with your blue calibration card visible</p>
-        
-        <input type="file" id="photoInput" accept="image/*">
-        <div class="button-group">
-            <button class="btn" onclick="document.getElementById('photoInput').click()">
-                📁 Choose Photo
-            </button>
-            <button class="btn" onclick="openCamera()">
-                📷 Take Photo
-            </button>
-        </div>
+        <div class="card">
+            <h2>Step 1: Load Photo</h2>
+            <p style="margin: 10px 0; color: #666;">Take or upload a photo with your blue calibration card visible</p>
 
-        <div class="instructions">
-            <h3>📋 How to take the photo:</h3>
-            <ol>
-                <li>Place your blue calibration card on the wall at the proposed flue height</li>
-                <li>Stand back and take a clear photo that includes the card and surrounding area</li>
-                <li>Make sure the card is visible and not blurry</li>
-                <li>Include any windows, vents, corners, or obstacles in the frame</li>
-            </ol>
-        </div>
-    </div>
-
-    <div class="canvas-container" id="canvasContainer">
-        <canvas id="photoCanvas"></canvas>
-    </div>
-
-    <div class="card" id="calibrationCard" style="display: none;">
-        <h2>Step 2: Calibrate Scale</h2>
-        
-        <div class="status" id="tapStatus">
-            Choose calibration method below
-        </div>
-
-        <div class="button-group">
-            <button class="btn btn-secondary" onclick="autoDetectCard()">
-                🤖 Auto-Detect Card
-            </button>
-            <button class="btn" onclick="startManualCalibration()">
-                👆 Manual 4-Point
-            </button>
-        </div>
-
-        <div class="calibration-points" id="pointsDisplay" style="display: none;">
-            <p>Points tapped: <span id="pointCount">0</span>/4</p>
-            <button class="btn btn-danger" onclick="resetCalibration()" style="margin-top: 10px;">
-                ↺ Reset Points
-            </button>
-        </div>
-
-        <div class="calibration-info" id="calibrationInfo">
-            <h4>✅ Calibration Complete!</h4>
-            <p>Scale: <span id="scaleDisplay">-</span> pixels/mm</p>
-            <p>Card Width: <span id="cardWidthDisplay">-</span> pixels (should be ~85.6mm)</p>
-            <p>Card Height: <span id="cardHeightDisplay">-</span> pixels (should be ~53.98mm)</p>
-            <p>Accuracy: <span id="accuracyDisplay">-</span></p>
-            <button class="btn" onclick="resetCalibration()" style="margin-top: 10px;">
-                🔄 Recalibrate
-            </button>
-        </div>
-    </div>
-
-    <div class="card" id="analysisCard" style="display: none;">
-        <h2>Step 3: Choose Analysis Type</h2>
-        
-        <div class="instructions">
-            <h3>What do you want to check?</h3>
-        </div>
-
-        <div class="button-group">
-            <button class="btn btn-secondary" onclick="startFlueMode()">
-                🔥 Flue Clearances
-            </button>
-            <button class="btn btn-secondary" onclick="startBoilerMode()">
-                🔧 Boiler Clearances
-            </button>
-        </div>
-
-        <div id="positionInstructions" style="display: none;">
-            <div class="status active" id="positionStatus">
-                👆 Tap on the image to mark the position
+            <input type="file" id="photoInput" accept="image/*">
+            <div class="button-group">
+                <button class="btn" onclick="document.getElementById('photoInput').click()">
+                    📁 Choose Photo
+                </button>
+                <button class="btn" onclick="openCamera()">
+                    📷 Take Photo
+                </button>
             </div>
-            
-            <button class="btn" id="analyzeBtn" onclick="analyzeClearances()" disabled>
-                🔍 Calculate Clearance Zones
-            </button>
+
+            <div class="instructions">
+                <h3>📋 How to take the photo:</h3>
+                <ol>
+                    <li>Place your blue calibration card on the wall at the proposed flue/boiler height</li>
+                    <li>Stand back and take a clear photo that includes the card and surrounding area</li>
+                    <li>Make sure the card is visible and not blurry</li>
+                    <li>Include any windows, vents, corners, or obstacles in the frame</li>
+                </ol>
+            </div>
         </div>
 
-        <div class="status" id="analysisStatus"></div>
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="photoCanvas"></canvas>
+        </div>
+
+        <div class="card" id="calibrationCard" style="display: none;">
+            <h2>Step 2: Calibrate Scale</h2>
+
+            <div class="status" id="tapStatus">
+                Choose calibration method below
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="autoDetectCard()">
+                    🤖 Auto-Detect Card
+                </button>
+                <button class="btn" onclick="startManualCalibration()">
+                    👆 Manual 4-Point
+                </button>
+            </div>
+
+            <div class="calibration-points" id="pointsDisplay" style="display: none;">
+                <p>Points tapped: <span id="pointCount">0</span>/4</p>
+                <button class="btn btn-danger" onclick="resetCalibration()" style="margin-top: 10px;">
+                    ↺ Reset Points
+                </button>
+            </div>
+
+            <div class="calibration-info" id="calibrationInfo">
+                <h4>✅ Calibration Complete!</h4>
+                <p>Scale: <span id="scaleDisplay">-</span> pixels/mm</p>
+                <p>Card Width: <span id="cardWidthDisplay">-</span> pixels (should be ~85.6mm)</p>
+                <p>Card Height: <span id="cardHeightDisplay">-</span> pixels (should be ~53.98mm)</p>
+                <p>Accuracy: <span id="accuracyDisplay">-</span></p>
+                <button class="btn" onclick="resetCalibration()" style="margin-top: 10px;">
+                    🔄 Recalibrate
+                </button>
+            </div>
+        </div>
+
+        <div class="card" id="analysisCard" style="display: none;">
+            <h2>Step 3: Choose Analysis Type</h2>
+
+            <div class="instructions">
+                <h3>What do you want to check?</h3>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="startFlueMode()">
+                    🔥 Flue Clearances
+                </button>
+                <button class="btn btn-secondary" onclick="startBoilerMode()">
+                    🔧 Boiler Clearances
+                </button>
+            </div>
+
+            <div id="positionInstructions" style="display: none;">
+                <div class="status active" id="positionStatus">
+                    👆 Tap on the image to mark the position
+                </div>
+
+                <label style="display: block; margin: 15px 0;">
+                    <strong>Brand:</strong>
+                    <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;">
+                        <option value="worcester">Worcester Bosch</option>
+                        <option value="vaillant">Vaillant</option>
+                        <option value="ideal">Ideal</option>
+                    </select>
+                </label>
+
+                <button class="btn" id="analyzeBtn" onclick="analyzeClearances()" disabled>
+                    🔍 Calculate Clearance Zones
+                </button>
+            </div>
+
+            <div class="loading" id="loadingIndicator" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analyzing image with AI...</p>
+            </div>
+
+            <div class="status" id="analysisStatus"></div>
+
+            <div class="results-panel" id="resultsPanel">
+                <h4>🎯 Detection Results</h4>
+                <div class="zone-legend">
+                    <div class="zone-legend-item">
+                        <div class="zone-color-box zone-red"></div>
+                        <span>Prohibited Zone</span>
+                    </div>
+                    <div class="zone-legend-item">
+                        <div class="zone-color-box zone-green"></div>
+                        <span>Safe Zone</span>
+                    </div>
+                    <div class="zone-legend-item">
+                        <div class="zone-color-box zone-blue"></div>
+                        <span>Restricted (Plume Kit)</span>
+                    </div>
+                </div>
+                <div id="detectionsList"></div>
+            </div>
+        </div>
     </div>
-</div>
 
-<script>
-    // Core state
-    const state = {
-        photo: null,
-        canvas: null,
-        ctx: null,
-        calibrationPoints: [],
-        isCalibrating: false,
-        pxPerMM: null,
-        fluePosition: null,
-        canvasScale: 1,
-        mode: null // 'flue' or 'boiler'
-    };
+    <script>
+        const WORKER_URL = 'https://clearance-genie-worker.martinbibb.workers.dev';
+        const CARD_WIDTH_MM = 85.6;
+        const CARD_HEIGHT_MM = 53.98;
 
-    // Constants
-    const CARD_WIDTH_MM = 85.6;
-    const CARD_HEIGHT_MM = 53.98;
-
-    // Initialize
-    document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
-
-    function openCamera() {
-        const input = document.getElementById('photoInput');
-        input.setAttribute('capture', 'environment');
-        input.click();
-        // Remove capture attribute after click so "choose photo" still works
-        setTimeout(() => input.removeAttribute('capture'), 100);
-    }
-
-    function handlePhotoUpload(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const img = new Image();
-            img.onload = function() {
-                setupCanvas(img);
-                document.getElementById('canvasContainer').classList.add('active');
-                document.getElementById('calibrationCard').style.display = 'block';
-            };
-            img.src = event.target.result;
-            state.photo = img;
+        const state = {
+            photo: null,
+            photoBase64: null,
+            canvas: null,
+            ctx: null,
+            calibrationPoints: [],
+            isCalibrating: false,
+            pxPerMM: null,
+            position: null,
+            canvasScale: 1,
+            mode: null,
+            detections: [],
+            zones: null
         };
-        reader.readAsDataURL(file);
-    }
 
-    function setupCanvas(img) {
-        const canvas = document.getElementById('photoCanvas');
-        const container = document.getElementById('canvasContainer');
-        
-        // Set canvas to image dimensions
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        state.canvas = canvas;
-        state.ctx = canvas.getContext('2d');
-        
-        // Draw image
-        state.ctx.drawImage(img, 0, 0);
-        
-        // Calculate scale for display vs actual canvas
-        const rect = canvas.getBoundingClientRect();
-        state.canvasScale = canvas.width / rect.width;
-    }
+        document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
-    function startManualCalibration() {
-        state.isCalibrating = true;
-        state.calibrationPoints = [];
-        updatePointsDisplay();
-        
-        document.getElementById('pointsDisplay').style.display = 'block';
-        
-        const status = document.getElementById('tapStatus');
-        status.classList.add('active');
-        status.classList.remove('warning');
-        status.textContent = 'Tap corner 1/4: Top-Left corner of card';
-        
-        // Add click listener to canvas
-        state.canvas.addEventListener('click', handleCalibrationClick);
-    }
+        function openCamera() {
+            const input = document.getElementById('photoInput');
+            input.setAttribute('capture', 'environment');
+            input.click();
+            setTimeout(() => input.removeAttribute('capture'), 100);
+        }
 
-    function autoDetectCard() {
-        const status = document.getElementById('tapStatus');
-        status.classList.add('active');
-        status.textContent = '🔍 Searching for blue card...';
-        
-        // Get image data
-        const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
-        const data = imageData.data;
-        
-        // Find blue regions (looking for calibration card)
-        const bluePixels = [];
-        
-        for (let y = 0; y < state.canvas.height; y++) {
-            for (let x = 0; x < state.canvas.width; x++) {
-                const i = (y * state.canvas.width + x) * 4;
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                
-                // Check if pixel is blue (b > r and b > g)
-                // Adjust thresholds based on your specific card color
-                if (b > r + 30 && b > g + 30 && b > 100) {
-                    bluePixels.push({x, y});
+        function handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                state.photoBase64 = event.target.result;
+                const img = new Image();
+                img.onload = function() {
+                    setupCanvas(img);
+                    document.getElementById('canvasContainer').classList.add('active');
+                    document.getElementById('calibrationCard').style.display = 'block';
+                };
+                img.src = event.target.result;
+                state.photo = img;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setupCanvas(img) {
+            const canvas = document.getElementById('photoCanvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            state.canvas = canvas;
+            state.ctx = canvas.getContext('2d');
+            state.ctx.drawImage(img, 0, 0);
+
+            const rect = canvas.getBoundingClientRect();
+            state.canvasScale = canvas.width / rect.width;
+        }
+
+        function startManualCalibration() {
+            if (!state.canvas) return;
+            state.isCalibrating = true;
+            state.calibrationPoints = [];
+            updatePointsDisplay();
+
+            document.getElementById('pointsDisplay').style.display = 'block';
+
+            const status = document.getElementById('tapStatus');
+            status.classList.add('active');
+            status.classList.remove('warning');
+            status.textContent = 'Tap corner 1/4: Top-Left corner of card';
+
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.addEventListener('click', handleCalibrationClick);
+        }
+
+        function autoDetectCard() {
+            if (!state.ctx) return;
+            const status = document.getElementById('tapStatus');
+            status.classList.add('active');
+            status.textContent = '🔍 Searching for blue card...';
+
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const data = imageData.data;
+
+            const bluePixels = [];
+
+            for (let y = 0; y < state.canvas.height; y += 2) {
+                for (let x = 0; x < state.canvas.width; x += 2) {
+                    const i = (y * state.canvas.width + x) * 4;
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    if (b > r + 30 && b > g + 30 && b > 100) {
+                        bluePixels.push({x, y});
+                    }
                 }
             }
-        }
-        
-        if (bluePixels.length < 100) {
-            status.classList.add('warning');
-            status.textContent = '❌ Could not find blue card. Try manual calibration or adjust lighting.';
-            return;
-        }
-        
-        // Find bounding box of blue region
-        const minX = Math.min(...bluePixels.map(p => p.x));
-        const maxX = Math.max(...bluePixels.map(p => p.x));
-        const minY = Math.min(...bluePixels.map(p => p.y));
-        const maxY = Math.max(...bluePixels.map(p => p.y));
-        
-        const width = maxX - minX;
-        const height = maxY - minY;
-        const aspectRatio = width / height;
-        const expectedRatio = CARD_WIDTH_MM / CARD_HEIGHT_MM; // ~1.585
-        
-        // Check if aspect ratio is reasonable for a credit card
-        if (Math.abs(aspectRatio - expectedRatio) > 0.3) {
-            status.classList.add('warning');
-            status.textContent = `⚠️ Found blue region but shape doesn't match card (ratio: ${aspectRatio.toFixed(2)}). Try manual calibration.`;
-            
-            // Still draw what we found for debugging
-            state.ctx.strokeStyle = '#f56565';
-            state.ctx.lineWidth = 3;
-            state.ctx.strokeRect(minX, minY, width, height);
-            return;
-        }
-        
-        // Set calibration points as corners of bounding box
-        state.calibrationPoints = [
-            {x: minX, y: minY},        // Top-left
-            {x: maxX, y: minY},        // Top-right
-            {x: maxX, y: maxY},        // Bottom-right
-            {x: minX, y: maxY}         // Bottom-left
-        ];
-        
-        status.textContent = '✅ Card detected! Calculating scale...';
-        
-        // Calculate calibration
-        setTimeout(() => calculateCalibration(), 500);
-    }
 
-    function handleCalibrationClick(e) {
-        if (!state.isCalibrating) return;
-        
-        const rect = state.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * state.canvasScale;
-        const y = (e.clientY - rect.top) * state.canvasScale;
-        
-        state.calibrationPoints.push({x, y});
-        
-        // Draw point
-        state.ctx.fillStyle = '#f56565';
-        state.ctx.beginPath();
-        state.ctx.arc(x, y, 8, 0, Math.PI * 2);
-        state.ctx.fill();
-        
-        // Draw number
-        state.ctx.fillStyle = 'white';
-        state.ctx.font = 'bold 16px Arial';
-        state.ctx.textAlign = 'center';
-        state.ctx.textBaseline = 'middle';
-        state.ctx.fillText(state.calibrationPoints.length, x, y);
-        
-        updatePointsDisplay();
-        
-        const status = document.getElementById('tapStatus');
-        const corners = ['Top-Left', 'Top-Right', 'Bottom-Right', 'Bottom-Left'];
-        
-        if (state.calibrationPoints.length < 4) {
-            status.textContent = `Tap corner ${state.calibrationPoints.length + 1}/4: ${corners[state.calibrationPoints.length]} corner of card`;
-        } else {
-            // Calculate calibration
-            calculateCalibration();
-        }
-    }
+            if (bluePixels.length < 100) {
+                status.classList.add('warning');
+                status.textContent = '❌ Could not find blue card. Try manual calibration or adjust lighting.';
+                return;
+            }
 
-    function calculateCalibration() {
-        const points = state.calibrationPoints;
-        
-        // Calculate distances in pixels
-        const topWidth = distance(points[0], points[1]);
-        const bottomWidth = distance(points[3], points[2]);
-        const leftHeight = distance(points[0], points[3]);
-        const rightHeight = distance(points[1], points[2]);
-        
-        // Average width and height in pixels
-        const avgWidthPx = (topWidth + bottomWidth) / 2;
-        const avgHeightPx = (leftHeight + rightHeight) / 2;
-        
-        // Calculate pixels per mm
-        const pxPerMMWidth = avgWidthPx / CARD_WIDTH_MM;
-        const pxPerMMHeight = avgHeightPx / CARD_HEIGHT_MM;
-        
-        // Average the two (should be similar if photo is straight-on)
-        state.pxPerMM = (pxPerMMWidth + pxPerMMHeight) / 2;
-        
-        // Calculate accuracy metric (how much width and height differ)
-        const skew = Math.abs(pxPerMMWidth - pxPerMMHeight) / state.pxPerMM * 100;
-        let accuracyRating = '';
-        
-        if (skew < 5) {
-            accuracyRating = '✅ Excellent (< 5% skew)';
-        } else if (skew < 10) {
-            accuracyRating = '⚠️ Good (< 10% skew)';
-        } else {
-            accuracyRating = '❌ Poor - Consider retaking photo more straight-on';
+            const minX = Math.min(...bluePixels.map(p => p.x));
+            const maxX = Math.max(...bluePixels.map(p => p.x));
+            const minY = Math.min(...bluePixels.map(p => p.y));
+            const maxY = Math.max(...bluePixels.map(p => p.y));
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const aspectRatio = width / height;
+            const expectedRatio = CARD_WIDTH_MM / CARD_HEIGHT_MM;
+
+            if (Math.abs(aspectRatio - expectedRatio) > 0.3) {
+                status.classList.add('warning');
+                status.textContent = `⚠️ Found blue region but shape doesn't match card (ratio: ${aspectRatio.toFixed(2)}). Try manual calibration.`;
+
+                state.ctx.strokeStyle = '#f56565';
+                state.ctx.lineWidth = 3;
+                state.ctx.strokeRect(minX, minY, width, height);
+                return;
+            }
+
+            state.calibrationPoints = [
+                {x: minX, y: minY},
+                {x: maxX, y: minY},
+                {x: maxX, y: maxY},
+                {x: minX, y: maxY}
+            ];
+
+            status.textContent = '✅ Card detected! Calculating scale...';
+            setTimeout(() => calculateCalibration(), 500);
         }
-        
-        // Draw calibration rectangle
-        state.ctx.strokeStyle = skew < 10 ? '#48bb78' : '#f56565';
-        state.ctx.lineWidth = 4;
-        state.ctx.beginPath();
-        state.ctx.moveTo(points[0].x, points[0].y);
-        state.ctx.lineTo(points[1].x, points[1].y);
-        state.ctx.lineTo(points[2].x, points[2].y);
-        state.ctx.lineTo(points[3].x, points[3].y);
-        state.ctx.closePath();
-        state.ctx.stroke();
-        
-        // Draw corner markers
-        points.forEach((point, i) => {
-            state.ctx.fillStyle = skew < 10 ? '#48bb78' : '#f56565';
+
+        function handleCalibrationClick(e) {
+            if (!state.isCalibrating) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.calibrationPoints.push({x, y});
+
+            state.ctx.fillStyle = '#f56565';
             state.ctx.beginPath();
-            state.ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+            state.ctx.arc(x, y, 8, 0, Math.PI * 2);
             state.ctx.fill();
-            
+
             state.ctx.fillStyle = 'white';
-            state.ctx.font = 'bold 14px Arial';
+            state.ctx.font = 'bold 16px Arial';
             state.ctx.textAlign = 'center';
             state.ctx.textBaseline = 'middle';
-            state.ctx.fillText(i + 1, point.x, point.y);
-        });
-        
-        // Update UI
-        state.isCalibrating = false;
-        state.canvas.removeEventListener('click', handleCalibrationClick);
-        
-        const status = document.getElementById('tapStatus');
-        status.classList.remove('active');
-        
-        const info = document.getElementById('calibrationInfo');
-        info.classList.add('active');
-        document.getElementById('scaleDisplay').textContent = state.pxPerMM.toFixed(2);
-        document.getElementById('cardWidthDisplay').textContent = avgWidthPx.toFixed(1);
-        document.getElementById('cardHeightDisplay').textContent = avgHeightPx.toFixed(1);
-        document.getElementById('accuracyDisplay').textContent = accuracyRating;
-        
-        // Enable analysis
-        document.getElementById('analysisCard').style.display = 'block';
-    }
+            state.ctx.fillText(state.calibrationPoints.length, x, y);
 
-    function startFlueMode() {
-        state.mode = 'flue';
-        document.getElementById('positionInstructions').style.display = 'block';
-        document.getElementById('positionStatus').textContent = '🔥 Tap where you want the flue terminal';
-        state.canvas.addEventListener('click', handlePositionClick);
-    }
+            updatePointsDisplay();
 
-    function startBoilerMode() {
-        state.mode = 'boiler';
-        document.getElementById('positionInstructions').style.display = 'block';
-        document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler will be located';
-        state.canvas.addEventListener('click', handlePositionClick);
-    }
+            const status = document.getElementById('tapStatus');
+            const corners = ['Top-Left', 'Top-Right', 'Bottom-Right', 'Bottom-Left'];
 
-    function handlePositionClick(e) {
-        if (state.isCalibrating) return;
-        
-        const rect = state.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * state.canvasScale;
-        const y = (e.clientY - rect.top) * state.canvasScale;
-        
-        state.fluePosition = {x, y};
-        
-        // Redraw image and calibration
-        state.ctx.drawImage(state.photo, 0, 0);
-        drawCalibrationOverlay();
-        
-        // Draw flue marker
-        state.ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
-        state.ctx.strokeStyle = '#f56565';
-        state.ctx.lineWidth = 3;
-        state.ctx.beginPath();
-        state.ctx.arc(x, y, 20, 0, Math.PI * 2);
-        state.ctx.fill();
-        state.ctx.stroke();
-        
-        // Draw crosshair
-        state.ctx.strokeStyle = '#f56565';
-        state.ctx.lineWidth = 2;
-        state.ctx.beginPath();
-        state.ctx.moveTo(x - 30, y);
-        state.ctx.lineTo(x + 30, y);
-        state.ctx.moveTo(x, y - 30);
-        state.ctx.lineTo(x, y + 30);
-        state.ctx.stroke();
-        
-        // Enable analyze button
-        document.getElementById('analyzeBtn').disabled = false;
-        
-        const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
-        document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked. Click "Calculate Clearance Zones" to analyze.`;
-    }
+            if (state.calibrationPoints.length < 4) {
+                status.textContent = `Tap corner ${state.calibrationPoints.length + 1}/4: ${corners[state.calibrationPoints.length]} corner of card`;
+            } else {
+                calculateCalibration();
+            }
+        }
 
-    function drawCalibrationOverlay() {
-        if (state.calibrationPoints.length === 4) {
+        function calculateCalibration() {
             const points = state.calibrationPoints;
-            
-            // Draw rectangle
-            state.ctx.strokeStyle = '#48bb78';
-            state.ctx.lineWidth = 3;
+            if (points.length < 4) return;
+
+            const topWidth = distance(points[0], points[1]);
+            const bottomWidth = distance(points[3], points[2]);
+            const leftHeight = distance(points[0], points[3]);
+            const rightHeight = distance(points[1], points[2]);
+
+            const avgWidthPx = (topWidth + bottomWidth) / 2;
+            const avgHeightPx = (leftHeight + rightHeight) / 2;
+
+            const pxPerMMWidth = avgWidthPx / CARD_WIDTH_MM;
+            const pxPerMMHeight = avgHeightPx / CARD_HEIGHT_MM;
+
+            state.pxPerMM = (pxPerMMWidth + pxPerMMHeight) / 2;
+
+            const skew = Math.abs(pxPerMMWidth - pxPerMMHeight) / state.pxPerMM * 100;
+            let accuracyRating = '';
+
+            if (skew < 5) {
+                accuracyRating = '✅ Excellent (< 5% skew)';
+            } else if (skew < 10) {
+                accuracyRating = '⚠️ Good (< 10% skew)';
+            } else {
+                accuracyRating = '❌ Poor - Consider retaking photo more straight-on';
+            }
+
+            state.ctx.strokeStyle = skew < 10 ? '#48bb78' : '#f56565';
+            state.ctx.lineWidth = 4;
             state.ctx.beginPath();
             state.ctx.moveTo(points[0].x, points[0].y);
             state.ctx.lineTo(points[1].x, points[1].y);
@@ -663,110 +628,264 @@
             state.ctx.lineTo(points[3].x, points[3].y);
             state.ctx.closePath();
             state.ctx.stroke();
-            
-            // Draw points
+
             points.forEach((point, i) => {
-                state.ctx.fillStyle = '#f56565';
+                state.ctx.fillStyle = skew < 10 ? '#48bb78' : '#f56565';
                 state.ctx.beginPath();
-                state.ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+                state.ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
                 state.ctx.fill();
-                
+
                 state.ctx.fillStyle = 'white';
-                state.ctx.font = 'bold 16px Arial';
+                state.ctx.font = 'bold 14px Arial';
                 state.ctx.textAlign = 'center';
                 state.ctx.textBaseline = 'middle';
                 state.ctx.fillText(i + 1, point.x, point.y);
             });
+
+            state.isCalibrating = false;
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+
+            const status = document.getElementById('tapStatus');
+            status.classList.remove('active');
+
+            const info = document.getElementById('calibrationInfo');
+            info.classList.add('active');
+            document.getElementById('scaleDisplay').textContent = state.pxPerMM.toFixed(2);
+            document.getElementById('cardWidthDisplay').textContent = avgWidthPx.toFixed(1);
+            document.getElementById('cardHeightDisplay').textContent = avgHeightPx.toFixed(1);
+            document.getElementById('accuracyDisplay').textContent = accuracyRating;
+
+            document.getElementById('analysisCard').style.display = 'block';
         }
-    }
 
-    function analyzeClearances() {
-        if (!state.fluePosition || !state.pxPerMM) return;
-        
-        // For now, draw simple clearance zones
-        // In future: integrate with AI detection and brand-specific rules
-        
-        const flue = state.fluePosition;
-        
-        // Basic clearance zones (example: 300mm minimum clearances)
-        const clearance300mm = 300 * state.pxPerMM;
-        
-        // Redraw everything
-        state.ctx.drawImage(state.photo, 0, 0);
-        drawCalibrationOverlay();
-        
-        // Draw safe zone (green circle)
-        state.ctx.fillStyle = 'rgba(72, 187, 120, 0.2)';
-        state.ctx.strokeStyle = '#48bb78';
-        state.ctx.lineWidth = 3;
-        state.ctx.setLineDash([10, 5]);
-        state.ctx.beginPath();
-        state.ctx.arc(flue.x, flue.y, clearance300mm, 0, Math.PI * 2);
-        state.ctx.fill();
-        state.ctx.stroke();
-        state.ctx.setLineDash([]);
-        
-        // Redraw flue marker on top
-        state.ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
-        state.ctx.strokeStyle = '#f56565';
-        state.ctx.lineWidth = 3;
-        state.ctx.beginPath();
-        state.ctx.arc(flue.x, flue.y, 20, 0, Math.PI * 2);
-        state.ctx.fill();
-        state.ctx.stroke();
-        
-        // Draw crosshair
-        state.ctx.strokeStyle = '#f56565';
-        state.ctx.lineWidth = 2;
-        state.ctx.beginPath();
-        state.ctx.moveTo(flue.x - 30, flue.y);
-        state.ctx.lineTo(flue.x + 30, flue.y);
-        state.ctx.moveTo(flue.x, flue.y - 30);
-        state.ctx.lineTo(flue.x, flue.y + 30);
-        state.ctx.stroke();
-        
-        const status = document.getElementById('analysisStatus');
-        status.classList.add('active');
-        
-        const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
-        status.textContent = `✅ Basic clearance zone shown for ${modeText} (300mm radius). Ready for AI integration and brand-specific rules.`;
-    }
+        function startFlueMode() {
+            state.mode = 'flue';
+            document.getElementById('positionInstructions').style.display = 'block';
+            document.getElementById('positionStatus').textContent = '🔥 Tap where you want the flue terminal';
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.addEventListener('click', handlePositionClick);
+        }
 
-    function resetCalibration() {
-        state.calibrationPoints = [];
-        state.isCalibrating = false;
-        state.pxPerMM = null;
-        state.fluePosition = null;
-        state.mode = null;
-        
-        if (state.photo) {
+        function startBoilerMode() {
+            state.mode = 'boiler';
+            document.getElementById('positionInstructions').style.display = 'block';
+            document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler will be located';
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.addEventListener('click', handlePositionClick);
+        }
+
+        function handlePositionClick(e) {
+            if (state.isCalibrating) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+
+            redrawCanvas();
+            drawPositionMarker(x, y);
+
+            document.getElementById('analyzeBtn').disabled = false;
+
+            const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
+            document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked. Click "Calculate Clearance Zones" to analyze.`;
+        }
+
+        function drawPositionMarker(x, y) {
+            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 3;
+            state.ctx.beginPath();
+            state.ctx.arc(x, y, 20, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 2;
+            state.ctx.beginPath();
+            state.ctx.moveTo(x - 30, y);
+            state.ctx.lineTo(x + 30, y);
+            state.ctx.moveTo(x, y - 30);
+            state.ctx.lineTo(x, y + 30);
+            state.ctx.stroke();
+        }
+
+        async function analyzeClearances() {
+            if (!state.position || !state.pxPerMM || !state.photoBase64) return;
+
+            const brand = document.getElementById('brandSelect').value;
+
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('analysisStatus').classList.remove('active', 'error');
+
+            try {
+                const response = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: state.photoBase64,
+                        pxPerMM: state.pxPerMM,
+                        mode: state.mode,
+                        brand: brand,
+                        position: state.position
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Worker error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Unknown error');
+                }
+
+                state.detections = result.detections || [];
+                state.zones = result.zones || { prohibited: [], restricted: [], safe: [] };
+
+                displayResults();
+                drawClearanceZones();
+
+                const status = document.getElementById('analysisStatus');
+                status.classList.add('active');
+                status.classList.remove('error');
+                status.textContent = `✅ Analysis complete! Found ${state.detections.length} objects.`;
+
+            } catch (error) {
+                console.error('Analysis error:', error);
+                const status = document.getElementById('analysisStatus');
+                status.classList.add('active', 'error');
+                status.textContent = `❌ Error: ${error.message}`;
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function displayResults() {
+            const panel = document.getElementById('resultsPanel');
+            const list = document.getElementById('detectionsList');
+
+            if (state.detections.length === 0) {
+                list.innerHTML = '<p>No objects detected. The area appears clear!</p>';
+            } else {
+                list.innerHTML = state.detections.map(obj => `
+                    <div class="detection-item">
+                        <strong>${obj.type}</strong> - 
+                        Confidence: ${(obj.confidence * 100).toFixed(0)}% - 
+                        Position: (${obj.x.toFixed(0)}, ${obj.y.toFixed(0)})
+                    </div>
+                `).join('');
+            }
+
+            panel.classList.add('active');
+        }
+
+        function drawClearanceZones() {
+            redrawCanvas();
+
+            if (!state.zones) return;
+
+            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.4)';
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 2;
+
+            state.zones.prohibited.forEach(zone => {
+                state.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                state.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+            });
+
+            state.ctx.fillStyle = 'rgba(66, 153, 225, 0.3)';
+            state.ctx.strokeStyle = '#4299e1';
+
+            state.zones.restricted.forEach(zone => {
+                state.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                state.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+            });
+
+            if (state.position) {
+                drawPositionMarker(state.position.x, state.position.y);
+            }
+        }
+
+        function redrawCanvas() {
+            if (!state.photo || !state.ctx) return;
             state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
         }
-        
-        updatePointsDisplay();
-        
-        document.getElementById('tapStatus').classList.remove('active');
-        document.getElementById('tapStatus').classList.remove('warning');
-        document.getElementById('tapStatus').textContent = 'Choose calibration method below';
-        document.getElementById('calibrationInfo').classList.remove('active');
-        document.getElementById('pointsDisplay').style.display = 'none';
-        document.getElementById('analysisCard').style.display = 'none';
-        document.getElementById('positionInstructions').style.display = 'none';
-        document.getElementById('analyzeBtn').disabled = true;
-        
-        state.canvas.removeEventListener('click', handleCalibrationClick);
-        state.canvas.removeEventListener('click', handlePositionClick);
-    }
 
-    function updatePointsDisplay() {
-        document.getElementById('pointCount').textContent = state.calibrationPoints.length;
-    }
+        function drawCalibrationOverlay() {
+            if (state.calibrationPoints.length === 4) {
+                const points = state.calibrationPoints;
 
-    function distance(p1, p2) {
-        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-    }
-</script>
-```
+                state.ctx.strokeStyle = '#48bb78';
+                state.ctx.lineWidth = 3;
+                state.ctx.beginPath();
+                state.ctx.moveTo(points[0].x, points[0].y);
+                state.ctx.lineTo(points[1].x, points[1].y);
+                state.ctx.lineTo(points[2].x, points[2].y);
+                state.ctx.lineTo(points[3].x, points[3].y);
+                state.ctx.closePath();
+                state.ctx.stroke();
 
+                points.forEach((point, i) => {
+                    state.ctx.fillStyle = '#f56565';
+                    state.ctx.beginPath();
+                    state.ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+                    state.ctx.fill();
+
+                    state.ctx.fillStyle = 'white';
+                    state.ctx.font = 'bold 16px Arial';
+                    state.ctx.textAlign = 'center';
+                    state.ctx.textBaseline = 'middle';
+                    state.ctx.fillText(i + 1, point.x, point.y);
+                });
+            }
+        }
+
+        function resetCalibration() {
+            state.calibrationPoints = [];
+            state.isCalibrating = false;
+            state.pxPerMM = null;
+            state.position = null;
+            state.mode = null;
+            state.detections = [];
+            state.zones = null;
+
+            if (state.photo) {
+                state.ctx.drawImage(state.photo, 0, 0);
+            }
+
+            updatePointsDisplay();
+
+            const tapStatus = document.getElementById('tapStatus');
+            tapStatus.classList.remove('active', 'warning');
+            tapStatus.textContent = 'Choose calibration method below';
+            document.getElementById('calibrationInfo').classList.remove('active');
+            document.getElementById('pointsDisplay').style.display = 'none';
+            document.getElementById('analysisCard').style.display = 'none';
+            document.getElementById('positionInstructions').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('resultsPanel').classList.remove('active');
+            document.getElementById('analysisStatus').classList.remove('active', 'error');
+            document.getElementById('detectionsList').innerHTML = '';
+
+            state.canvas?.removeEventListener('click', handleCalibrationClick);
+            state.canvas?.removeEventListener('click', handlePositionClick);
+        }
+
+        function updatePointsDisplay() {
+            document.getElementById('pointCount').textContent = state.calibrationPoints.length;
+        }
+
+        function distance(p1, p2) {
+            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        }
+    </script>
 </body>
 </html>
