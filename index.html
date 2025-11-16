@@ -791,11 +791,25 @@
             panel.classList.add('active');
         }
 
+        function drawCircularClearance(x, y, radiusPx, color, dashPattern) {
+            state.ctx.fillStyle = color;
+            state.ctx.strokeStyle = color.replace('0.3', '0.8'); // More opaque stroke
+            state.ctx.lineWidth = 3;
+            if (dashPattern) state.ctx.setLineDash(dashPattern);
+
+            state.ctx.beginPath();
+            state.ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            if (dashPattern) state.ctx.setLineDash([]);
+        }
+
         function drawClearanceZones() {
             // Redraw base
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
-            
+
             if (!state.zones) return;
             
             // Draw detected objects first (outline them)
@@ -810,17 +824,40 @@
                 state.ctx.fillText(obj.type, obj.x + 5, obj.y + 15);
             });
             
+            const prohibitedFill = 'rgba(245, 101, 101, 0.3)';
+            const prohibitedStroke = '#f56565';
+            const prohibitedDash = [10, 5];
+
+            const applyProhibitedStyles = () => {
+                state.ctx.fillStyle = prohibitedFill;
+                state.ctx.strokeStyle = prohibitedStroke;
+                state.ctx.lineWidth = 3;
+                state.ctx.setLineDash(prohibitedDash);
+            };
+
             // Draw prohibited zones (red)
-            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
-            state.ctx.strokeStyle = '#f56565';
-            state.ctx.lineWidth = 3;
-            state.ctx.setLineDash([10, 5]);
-            
+            applyProhibitedStyles();
             state.zones.prohibited.forEach(zone => {
-                state.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
-                state.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                if (zone.objectType === 'corner') {
+                    const centerX = zone.x + zone.width / 2;
+                    const centerY = zone.y + zone.height / 2;
+                    let radiusPx = Math.min(zone.width, zone.height) / 2;
+
+                    if (state.pxPerMM && zone.reason) {
+                        const match = zone.reason.match(/([\d.]+)\s*mm/i);
+                        if (match) {
+                            radiusPx = parseFloat(match[1]) * state.pxPerMM;
+                        }
+                    }
+
+                    drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
+                    applyProhibitedStyles();
+                } else {
+                    state.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                    state.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                }
             });
-            
+
             state.ctx.setLineDash([]);
             
             // Draw restricted zones (blue)
