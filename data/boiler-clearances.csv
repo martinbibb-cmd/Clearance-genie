@@ -1,0 +1,53 @@
+Type,Brand,Model/Range,Clearance Area,Clearance (mm),Special Rules / Notes
+Combi,Worcester,8000 Life/Style,Above,170/210,"Varies by 60/100 vs 80/125 flue"
+Combi,Worcester,8000 Life/Style,Either Side,5/300,"300mm required on ONE side if reduced clearances used"
+Combi,Worcester,8000 Life/Style,Front,450,"Reduced from 600mm if appliance 1000-1500mm from floor"
+Combi,Worcester,8000 Life/Style,Below,200,"Nothing may protrude into this zone"
+Combi,Worcester,8000 Life/Style,Floor to bottom,1000-1500,"Required for reduced-front-clearance installs"
+Combi,Worcester,8000 Life/Style,Compartment depth,385,"Must allow door removal (20mm)"
+Combi,Worcester,8000 Life/Style,Notes,,"No combustible items stored around appliance"
+System,Worcester,8000 System,Above,170/210,
+System,Worcester,8000 System,Either Side,5/300,"300mm one side required for reduced clearances"
+System,Worcester,8000 System,Front,450,
+System,Worcester,8000 System,Below,200,
+System,Worcester,8000 System,Floor to bottom,1000-1500,
+System,Worcester,8000 System,Roof-space working area,600-1200,"Loft boarding min 600mm; safe walkway required"
+Regular,Worcester,8000 Regular,Above,170/210,
+Regular,Worcester,8000 Regular,Sides,5/300,"5mm minimum, 300mm one side for reduced clearances"
+Regular,Worcester,8000 Regular,Front,450,
+Regular,Worcester,8000 Regular,Below,200,
+Regular,Worcester,8000 Regular,Compartment depth,385,
+Regular,Worcester,Greenstar Ri,Top (flue),150,
+Regular,Worcester,Greenstar Ri,Sides,5,"70mm if case removal required"
+Regular,Worcester,Greenstar Ri,Front,500,
+Regular,Worcester,Greenstar Ri,Rear,75,
+Regular,Worcester,Greenstar Ri,Notes,,"Suitable for combustible surfaces"
+Combi,Worcester,Greenstar 4000,Above,150,
+Combi,Worcester,Greenstar 4000,Sides,5/150,"Case removal = 70mm recommended"
+Combi,Worcester,Greenstar 4000,Front,500,
+Combi,Worcester,Greenstar 4000,Rear,75,
+Open-Vent,Vaillant,ecoFIT pure OV,Top,150,
+Open-Vent,Vaillant,ecoFIT pure OV,Rear,75,
+Open-Vent,Vaillant,ecoFIT pure OV,Sides,5/70,
+Open-Vent,Vaillant,ecoFIT pure OV,Front,500,
+Combi,Vaillant,ecoFIT pure Combi,Top,150,
+Combi,Vaillant,ecoFIT pure Combi,Rear,20,
+Combi,Vaillant,ecoFIT pure Combi,Sides,5/70,
+Combi,Vaillant,ecoFIT pure Combi,Front,500,
+System,Vaillant,ecoFIT pure System,Top,150,
+System,Vaillant,ecoFIT pure System,Rear,75,
+System,Vaillant,ecoFIT pure System,Sides,5/70,
+System,Vaillant,ecoFIT pure System,Front,500,
+Combi,Vaillant,ecoTEC pro,Top,165/275,"165mm for 60/100; 275mm for 80/125"
+Combi,Vaillant,ecoTEC pro,Sides,5/50,
+Combi,Vaillant,ecoTEC pro,Front,500,
+Combi,Vaillant,ecoTEC pro,Rear,,
+Combi,Vaillant,ecoTEC pro,Notes,,"Concentric only; no compartment vent required"
+Regular,Glow-worm,Energy7,Top,150,
+Regular,Glow-worm,Energy7,Rear,75,
+Regular,Glow-worm,Energy7,Sides,5/70,
+Regular,Glow-worm,Energy7,Front,600,
+Combi/System,Viessmann,Vitodens 050-W,Top,150,
+Combi/System,Viessmann,Vitodens 050-W,Sides,5,
+Combi/System,Viessmann,Vitodens 050-W,Front,500,
+Combi/System,Viessmann,Vitodens 050-W,Notes,,"C13/C33 flue types allowed"
