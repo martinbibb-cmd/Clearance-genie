@@ -426,6 +426,8 @@
                 </button>
             </div>
 
+            <button class="btn" onclick="testClick()">🧪 Test Click</button>
+
             <div id="positionInstructions" style="display: none;">
                 <div class="status active" id="positionStatus">
                     👆 Tap on the image to mark the position
@@ -891,7 +893,11 @@
         }
 
         function startFlueMode() {
-            console.log('startFlueMode() called');
+            console.log('=== START FLUE MODE CALLED ===');
+            console.log('Canvas exists?', !!state.canvas);
+            console.log('Canvas element:', state.canvas);
+            console.log('Canvas parent:', state.canvas ? state.canvas.parentNode : 'N/A');
+            console.log('Canvas computed style:', state.canvas ? window.getComputedStyle(state.canvas).pointerEvents : 'N/A');
 
             // Check if canvas exists
             if (!state.canvas) {
@@ -911,12 +917,14 @@
 
             // Add fresh listener
             state.canvas.addEventListener('click', handlePositionClick);
+            console.log('Added handlePositionClick listener');
 
             // Make sure canvas is clickable
             state.canvas.style.cursor = 'crosshair';
             state.canvas.style.pointerEvents = 'auto';
 
             console.log('Flue mode started - canvas ready for position click');
+            console.log('Final canvas pointer-events:', state.canvas.style.pointerEvents);
         }
 
         function startBoilerMode() {
@@ -1585,6 +1593,31 @@
 
         function distance(p1, p2) {
             return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        }
+
+        function testClick() {
+            alert('Button works! Mode: ' + state.mode + ', Canvas: ' + !!state.canvas);
+
+            console.log('=== TEST CLICK DEBUG ===');
+            console.log('State mode:', state.mode);
+            console.log('Canvas exists:', !!state.canvas);
+            console.log('Canvas:', state.canvas);
+
+            if (!state.canvas) {
+                alert('ERROR: Canvas is null!');
+                return;
+            }
+
+            // Try adding listener directly
+            state.canvas.onclick = function(e) {
+                alert('Canvas clicked!');
+                const rect = state.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * state.canvasScale;
+                const y = (e.clientY - rect.top) * state.canvasScale;
+                alert('Position: ' + Math.round(x) + ', ' + Math.round(y));
+            };
+
+            alert('Direct onclick handler added! Try clicking the canvas now.');
         }
 
         async function detectObjectsWithGemini() {
