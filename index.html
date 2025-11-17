@@ -376,6 +376,11 @@
 
         <div class="canvas-container" id="canvasContainer">
             <canvas id="photoCanvas"></canvas>
+            <div id="zoomControls" style="display: none; position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100;">
+                <button onclick="zoomIn()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">+</button>
+                <button onclick="resetZoom()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 14px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer;">1:1</button>
+                <button onclick="zoomOut()" style="display: block; width: 40px; height: 40px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">-</button>
+            </div>
         </div>
 
         <div class="card" id="calibrationCard" style="display: none;">
@@ -611,8 +616,11 @@
                 </div>
 
                 <div class="button-group">
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('window')">
-                        🪟 Add Window
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('window-openable')">
+                        🪟 Add Openable Window
+                    </button>
+                    <button class="btn btn-secondary" onclick="startMarkingObstacle('window-fixed')">
+                        🪟 Add Fixed Window
                     </button>
                     <button class="btn btn-secondary" onclick="startMarkingObstacle('vent')">
                         🌀 Add Vent
@@ -865,7 +873,14 @@
             zones: null,
             detectedObjects: [], // Objects detected by Gemini API
             boilerDimensions: null,
-            boilerClearances: null
+            boilerClearances: null,
+            // Zoom and pan state
+            zoomLevel: 1,
+            panX: 0,
+            panY: 0,
+            isPanning: false,
+            lastPanX: 0,
+            lastPanY: 0
         };
 
         // CSV Parsing and Loading Functions
@@ -1136,17 +1151,21 @@
 
         function setupCanvas(img) {
             const canvas = document.getElementById('photoCanvas');
-            
+
             canvas.width = img.width;
             canvas.height = img.height;
-            
+
             state.canvas = canvas;
             state.ctx = canvas.getContext('2d');
-            
+
             state.ctx.drawImage(img, 0, 0);
-            
+
             const rect = canvas.getBoundingClientRect();
             state.canvasScale = canvas.width / rect.width;
+
+            // Setup pan controls and show zoom controls
+            setupPanControls();
+            document.getElementById('zoomControls').style.display = 'block';
         }
 
         function startManualCalibration() {
@@ -1956,27 +1975,60 @@
             state.markingMode = type;
             state.markingPoints = [];
 
-            const needsPoints = (type === 'corner' || type === 'downpipe') ? 1 : 2;
+            let needsPoints;
+            let firstMessage;
+
+            if (type === 'corner' || type === 'downpipe') {
+                needsPoints = 1;
+                firstMessage = `👆 Tap location of ${type}`;
+            } else if (type === 'window-openable' || type === 'window-fixed') {
+                needsPoints = 4;
+                const windowType = type === 'window-openable' ? 'openable window' : 'fixed window';
+                firstMessage = `👆 Tap top-left corner of ${windowType}`;
+            } else {
+                needsPoints = 2;
+                firstMessage = `👆 Tap top-left corner of ${type}`;
+            }
 
             const status = document.getElementById('markingStatus');
             status.classList.add('active');
-            status.textContent = `👆 Tap ${needsPoints === 1 ? 'location' : 'top-left corner'} of ${type}`;
+            status.textContent = firstMessage;
 
             // Add marking click listener
             state.canvas.removeEventListener('click', handleMarkingClick);
             state.canvas.addEventListener('click', handleMarkingClick);
         }
 
+        // Helper function to convert click coordinates to canvas coordinates with zoom/pan
+        function getCanvasCoordinates(e) {
+            const rect = state.canvas.getBoundingClientRect();
+            let x = (e.clientX - rect.left) * state.canvasScale;
+            let y = (e.clientY - rect.top) * state.canvasScale;
+
+            // Reverse zoom and pan transformation
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            x = (x - (centerX - centerX * state.zoomLevel) - state.panX) / state.zoomLevel;
+            y = (y - (centerY - centerY * state.zoomLevel) - state.panY) / state.zoomLevel;
+
+            return {x, y};
+        }
+
         function handleMarkingClick(e) {
             if (!state.markingMode) return;
 
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * state.canvasScale;
-            const y = (e.clientY - rect.top) * state.canvasScale;
+            const {x, y} = getCanvasCoordinates(e);
 
             state.markingPoints.push({x, y});
 
-            const needsPoints = (state.markingMode === 'corner' || state.markingMode === 'downpipe') ? 1 : 2;
+            let needsPoints;
+            if (state.markingMode === 'corner' || state.markingMode === 'downpipe') {
+                needsPoints = 1;
+            } else if (state.markingMode === 'window-openable' || state.markingMode === 'window-fixed') {
+                needsPoints = 4;
+            } else {
+                needsPoints = 2;
+            }
 
             // Draw temporary marker
             state.ctx.fillStyle = '#667eea';
@@ -1984,10 +2036,29 @@
             state.ctx.arc(x, y, 8, 0, Math.PI * 2);
             state.ctx.fill();
 
+            // Draw connecting lines for windows (4-point marking)
+            if ((state.markingMode === 'window-openable' || state.markingMode === 'window-fixed') && state.markingPoints.length > 1) {
+                state.ctx.strokeStyle = '#667eea';
+                state.ctx.lineWidth = 2;
+                state.ctx.beginPath();
+                const prevPoint = state.markingPoints[state.markingPoints.length - 2];
+                state.ctx.moveTo(prevPoint.x, prevPoint.y);
+                state.ctx.lineTo(x, y);
+                state.ctx.stroke();
+            }
+
             if (state.markingPoints.length < needsPoints) {
                 // Need more points
                 const status = document.getElementById('markingStatus');
-                status.textContent = `👆 Tap bottom-right corner of ${state.markingMode}`;
+                const windowType = state.markingMode === 'window-openable' ? 'openable window' :
+                                 state.markingMode === 'window-fixed' ? 'fixed window' : state.markingMode;
+
+                if (state.markingMode === 'window-openable' || state.markingMode === 'window-fixed') {
+                    const messages = ['top-right corner', 'bottom-right corner', 'bottom-left corner'];
+                    status.textContent = `👆 Tap ${messages[state.markingPoints.length - 1]} of ${windowType}`;
+                } else {
+                    status.textContent = `👆 Tap bottom-right corner of ${state.markingMode}`;
+                }
             } else {
                 // Complete the obstacle
                 completeObstacleMarking();
@@ -2009,6 +2080,25 @@
                     y: points[0].y - pointSize / 2,
                     width: pointSize,
                     height: pointSize
+                };
+            } else if (type === 'window-openable' || type === 'window-fixed') {
+                // 4-point window (quadrilateral)
+                // Calculate bounding box for quick operations
+                const xs = points.map(p => p.x);
+                const ys = points.map(p => p.y);
+                const x1 = Math.min(...xs);
+                const y1 = Math.min(...ys);
+                const x2 = Math.max(...xs);
+                const y2 = Math.max(...ys);
+
+                obstacle = {
+                    type: 'window',
+                    windowType: type === 'window-openable' ? 'openable' : 'fixed',
+                    points: points, // Store all 4 points for precise rendering
+                    x: x1,
+                    y: y1,
+                    width: x2 - x1,
+                    height: y2 - y1
                 };
             } else {
                 // Rectangle obstacle
@@ -2042,7 +2132,9 @@
 
             const status = document.getElementById('markingStatus');
             status.classList.add('active');
-            status.textContent = `✅ ${type} marked! Add more obstacles or click Calculate.`;
+            const displayType = type === 'window-openable' ? 'openable window' :
+                              type === 'window-fixed' ? 'fixed window' : type;
+            status.textContent = `✅ ${displayType} marked! Add more obstacles or click Calculate.`;
         }
 
         function cancelMarking() {
@@ -2090,9 +2182,115 @@
             }
         }
 
+        // Zoom and Pan Functions
+        function zoomIn() {
+            state.zoomLevel = Math.min(state.zoomLevel * 1.2, 5);
+            applyZoomAndPan();
+        }
+
+        function zoomOut() {
+            state.zoomLevel = Math.max(state.zoomLevel / 1.2, 0.5);
+            applyZoomAndPan();
+        }
+
+        function resetZoom() {
+            state.zoomLevel = 1;
+            state.panX = 0;
+            state.panY = 0;
+            applyZoomAndPan();
+        }
+
+        function applyZoomAndPan() {
+            // Redraw with current zoom and pan
+            if (state.zones) {
+                drawClearanceZones();
+            } else {
+                redrawCanvasWithObstacles();
+            }
+        }
+
+        function setupPanControls() {
+            const canvas = state.canvas;
+
+            canvas.addEventListener('mousedown', startPan);
+            canvas.addEventListener('mousemove', doPan);
+            canvas.addEventListener('mouseup', endPan);
+            canvas.addEventListener('mouseleave', endPan);
+
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', startPanTouch);
+            canvas.addEventListener('touchmove', doPanTouch);
+            canvas.addEventListener('touchend', endPan);
+        }
+
+        function startPan(e) {
+            // Only pan if not in marking mode and zoom is active
+            if (!state.markingMode && state.zoomLevel !== 1) {
+                state.isPanning = true;
+                state.lastPanX = e.clientX;
+                state.lastPanY = e.clientY;
+                state.canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function doPan(e) {
+            if (state.isPanning) {
+                const deltaX = e.clientX - state.lastPanX;
+                const deltaY = e.clientY - state.lastPanY;
+
+                state.panX += deltaX;
+                state.panY += deltaY;
+                state.lastPanX = e.clientX;
+                state.lastPanY = e.clientY;
+
+                applyZoomAndPan();
+            }
+        }
+
+        function endPan() {
+            if (state.isPanning) {
+                state.isPanning = false;
+                state.canvas.style.cursor = state.zoomLevel === 1 ? 'crosshair' : 'grab';
+            }
+        }
+
+        function startPanTouch(e) {
+            if (!state.markingMode && state.zoomLevel !== 1 && e.touches.length === 1) {
+                e.preventDefault();
+                state.isPanning = true;
+                state.lastPanX = e.touches[0].clientX;
+                state.lastPanY = e.touches[0].clientY;
+            }
+        }
+
+        function doPanTouch(e) {
+            if (state.isPanning && e.touches.length === 1) {
+                e.preventDefault();
+                const deltaX = e.touches[0].clientX - state.lastPanX;
+                const deltaY = e.touches[0].clientY - state.lastPanY;
+
+                state.panX += deltaX;
+                state.panY += deltaY;
+                state.lastPanX = e.touches[0].clientX;
+                state.lastPanY = e.touches[0].clientY;
+
+                applyZoomAndPan();
+            }
+        }
+
         function redrawCanvasWithObstacles() {
             // Clear and redraw base
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+
+            // Apply zoom and pan transformation
+            state.ctx.save();
+            const rect = state.canvas.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            state.ctx.translate(state.panX / state.canvasScale, state.panY / state.canvasScale);
+            state.ctx.scale(state.zoomLevel, state.zoomLevel);
+            state.ctx.translate((centerX - centerX * state.zoomLevel) / state.canvasScale, (centerY - centerY * state.zoomLevel) / state.canvasScale);
+
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
 
@@ -2205,13 +2403,29 @@
 
                 state.ctx.strokeStyle = color;
                 state.ctx.lineWidth = 4;
-                state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Draw window as polygon if it has 4 points
+                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
+                    state.ctx.beginPath();
+                    state.ctx.moveTo(obs.points[0].x, obs.points[0].y);
+                    for (let i = 1; i < obs.points.length; i++) {
+                        state.ctx.lineTo(obs.points[i].x, obs.points[i].y);
+                    }
+                    state.ctx.closePath();
+                    state.ctx.stroke();
+                } else {
+                    state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+                }
 
                 // Label
                 state.ctx.fillStyle = color;
                 state.ctx.font = 'bold 20px Arial';
-                state.ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 25);
+                const displayType = obs.type === 'window' ? `${obs.windowType || ''} window`.trim() : obs.type;
+                state.ctx.fillText(`${index + 1}: ${displayType}`, obs.x + 5, obs.y + 25);
             });
+
+            // Restore context state
+            state.ctx.restore();
         }
 
         function calculateClearances() {
@@ -2242,7 +2456,7 @@
 
             state.obstacles.forEach(obs => {
                 const clearanceMM = state.mode === 'flue' ?
-                    getClearanceForObjectFlue(obs.type, rules) :
+                    getClearanceForObjectFlue(obs, rules) :
                     getClearanceForObject(obs.type, rules);
                 if (clearanceMM === null) return;
 
@@ -2321,10 +2535,14 @@
             return ruleKey ? (rules[ruleKey] ?? null) : null;
         }
 
-        function getClearanceForObjectFlue(objectType, flueClearances) {
+        function getClearanceForObjectFlue(obstacle, flueClearances) {
+            const objectType = obstacle.type;
+
             // Map obstacle type to CSV position/scenario
             const mapping = {
-                window: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                window: obstacle.windowType === 'fixed' ?
+                    ['Window (fixed non-vented)', 'Fixed unvented window', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
+                    ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                 door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                 vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                 corner: ['Internal/external corner', 'Corner', 'Outside corner'],
@@ -2406,13 +2624,43 @@
             if (dashPattern) state.ctx.setLineDash([]);
         }
 
+        // Helper function to draw rounded rectangle
+        function drawRoundedRect(ctx, x, y, width, height, radius, fill = false, stroke = true) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            if (fill) ctx.fill();
+            if (stroke) ctx.stroke();
+        }
+
         function drawClearanceZones() {
             // Redraw base
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+
+            // Apply zoom and pan transformation
+            state.ctx.save();
+            const rect = state.canvas.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            state.ctx.translate(state.panX / state.canvasScale, state.panY / state.canvasScale);
+            state.ctx.scale(state.zoomLevel, state.zoomLevel);
+            state.ctx.translate((centerX - centerX * state.zoomLevel) / state.canvasScale, (centerY - centerY * state.zoomLevel) / state.canvasScale);
+
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
 
-            if (!state.zones) return;
+            if (!state.zones) {
+                state.ctx.restore();
+                return;
+            }
 
             // Draw obstacles first
             const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800'];
@@ -2420,12 +2668,25 @@
                 const color = colors[index % colors.length];
                 state.ctx.strokeStyle = color;
                 state.ctx.lineWidth = 3;
-                state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Draw window as polygon if it has 4 points
+                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
+                    state.ctx.beginPath();
+                    state.ctx.moveTo(obs.points[0].x, obs.points[0].y);
+                    for (let i = 1; i < obs.points.length; i++) {
+                        state.ctx.lineTo(obs.points[i].x, obs.points[i].y);
+                    }
+                    state.ctx.closePath();
+                    state.ctx.stroke();
+                } else {
+                    state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+                }
 
                 // Label the object
                 state.ctx.fillStyle = color;
                 state.ctx.font = 'bold 16px Arial';
-                state.ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 22);
+                const displayType = obs.type === 'window' ? `${obs.windowType || ''} window`.trim() : obs.type;
+                state.ctx.fillText(`${index + 1}: ${displayType}`, obs.x + 5, obs.y + 22);
             });
             
             const prohibitedFill = 'rgba(245, 101, 101, 0.3)';
@@ -2442,7 +2703,7 @@
             // Draw prohibited zones (red)
             applyProhibitedStyles();
             state.zones.prohibited.forEach(zone => {
-                if (zone.objectType === 'corner') {
+                if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
                     const centerX = zone.x + zone.width / 2;
                     const centerY = zone.y + zone.height / 2;
                     let radiusPx = Math.min(zone.width, zone.height) / 2;
@@ -2457,8 +2718,9 @@
                     drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
                     applyProhibitedStyles();
                 } else {
-                    state.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
-                    state.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                    // Use rounded rectangles for clearance zones (15px corner radius)
+                    const cornerRadius = 15;
+                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
                 }
             });
 
@@ -2469,10 +2731,10 @@
             state.ctx.strokeStyle = '#4299e1';
             state.ctx.lineWidth = 2;
             state.ctx.setLineDash([5, 5]);
-            
+
             state.zones.restricted.forEach(zone => {
-                state.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
-                state.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                const cornerRadius = 15;
+                drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
             });
             
             state.ctx.setLineDash([]);
@@ -2509,6 +2771,9 @@
         function redrawCanvas() {
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
+
+            // Restore context state
+            state.ctx.restore();
         }
 
         function drawCalibrationOverlay() {
