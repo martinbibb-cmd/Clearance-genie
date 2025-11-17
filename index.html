@@ -377,9 +377,21 @@
         <div class="canvas-container" id="canvasContainer">
             <canvas id="photoCanvas"></canvas>
             <div id="zoomControls" style="display: none; position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100;">
-                <button onclick="zoomIn()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">+</button>
-                <button onclick="resetZoom()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 14px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer;">1:1</button>
-                <button onclick="zoomOut()" style="display: block; width: 40px; height: 40px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">-</button>
+                <div style="margin-bottom: 10px;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; text-align: center;">Zoom</div>
+                    <button onclick="zoomIn()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">+</button>
+                    <button onclick="resetZoom()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 14px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer;">1:1</button>
+                    <button onclick="zoomOut()" style="display: block; width: 40px; height: 40px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">-</button>
+                </div>
+                <div>
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; text-align: center;">Pan</div>
+                    <button onclick="panUp()" style="display: block; width: 40px; height: 40px; margin: 0 auto 5px; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">↑</button>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <button onclick="panLeft()" style="width: 40px; height: 40px; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">←</button>
+                        <button onclick="panRight()" style="width: 40px; height: 40px; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">→</button>
+                    </div>
+                    <button onclick="panDown()" style="display: block; width: 40px; height: 40px; margin: 0 auto; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">↓</button>
+                </div>
             </div>
         </div>
 
@@ -960,7 +972,11 @@
             lastPanX: 0,
             lastPanY: 0,
             // Plume kit mode
-            plumeKitMode: false
+            plumeKitMode: false,
+            // Long press move state
+            isLongPressing: false,
+            longPressTimer: null,
+            isMovingObject: false
         };
 
         // CSV Parsing and Loading Functions
@@ -1424,8 +1440,9 @@
             const rect = canvas.getBoundingClientRect();
             state.canvasScale = canvas.width / rect.width;
 
-            // Setup pan controls and show zoom controls
+            // Setup pan controls, long press move, and show zoom controls
             setupPanControls();
+            setupLongPressMove();
             document.getElementById('zoomControls').style.display = 'block';
         }
 
@@ -2852,12 +2869,180 @@
             applyZoomAndPan();
         }
 
+        function panUp() {
+            state.panY += 50;
+            applyZoomAndPan();
+        }
+
+        function panDown() {
+            state.panY -= 50;
+            applyZoomAndPan();
+        }
+
+        function panLeft() {
+            state.panX += 50;
+            applyZoomAndPan();
+        }
+
+        function panRight() {
+            state.panX -= 50;
+            applyZoomAndPan();
+        }
+
         function applyZoomAndPan() {
             // Redraw with current zoom and pan
             if (state.zones) {
                 drawClearanceZones();
             } else {
                 redrawCanvasWithObstacles();
+            }
+        }
+
+        // Long press object moving functionality
+        function setupLongPressMove() {
+            const canvas = state.canvas;
+
+            canvas.addEventListener('mousedown', handleLongPressStart);
+            canvas.addEventListener('touchstart', handleLongPressTouchStart);
+            canvas.addEventListener('mousemove', handleObjectMove);
+            canvas.addEventListener('touchmove', handleObjectMoveTouch);
+            canvas.addEventListener('mouseup', handleLongPressEnd);
+            canvas.addEventListener('touchend', handleLongPressEnd);
+        }
+
+        function handleLongPressStart(e) {
+            if (!canMoveObject()) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            // Check if click is on placed object
+            if (isClickOnObject(x, y)) {
+                // Start long press timer
+                state.longPressTimer = setTimeout(() => {
+                    state.isMovingObject = true;
+                    state.canvas.style.cursor = 'move';
+                    showMessage('Moving object - drag to new position');
+                }, 500); // 500ms for long press
+            }
+        }
+
+        function handleLongPressTouchStart(e) {
+            if (!canMoveObject() || e.touches.length !== 1) return;
+
+            e.preventDefault();
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
+            const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
+
+            if (isClickOnObject(x, y)) {
+                state.longPressTimer = setTimeout(() => {
+                    state.isMovingObject = true;
+                    showMessage('Moving object - drag to new position');
+                }, 500);
+            }
+        }
+
+        function handleObjectMove(e) {
+            if (!state.isMovingObject) {
+                // Cancel long press if mouse moves before timeout
+                if (state.longPressTimer) {
+                    clearTimeout(state.longPressTimer);
+                    state.longPressTimer = null;
+                }
+                return;
+            }
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            // Update position
+            state.position = {x, y};
+
+            // Redraw based on mode
+            redrawObjectAtNewPosition();
+        }
+
+        function handleObjectMoveTouch(e) {
+            if (!state.isMovingObject || e.touches.length !== 1) {
+                if (state.longPressTimer) {
+                    clearTimeout(state.longPressTimer);
+                    state.longPressTimer = null;
+                }
+                return;
+            }
+
+            e.preventDefault();
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
+            const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+            redrawObjectAtNewPosition();
+        }
+
+        function handleLongPressEnd() {
+            if (state.longPressTimer) {
+                clearTimeout(state.longPressTimer);
+                state.longPressTimer = null;
+            }
+
+            if (state.isMovingObject) {
+                state.isMovingObject = false;
+                state.canvas.style.cursor = 'crosshair';
+                showMessage('Object moved successfully');
+            }
+        }
+
+        function canMoveObject() {
+            return state.position && (state.mode === 'boiler' || state.mode === 'radiator' || state.mode === 'cylinder');
+        }
+
+        function isClickOnObject(x, y) {
+            if (!state.position) return false;
+
+            // Check if click is within object bounds
+            let width, height;
+
+            if (state.mode === 'boiler' && state.boilerDimensions) {
+                width = state.boilerDimensions.width * state.pxPerMM;
+                height = state.boilerDimensions.height * state.pxPerMM;
+            } else if (state.mode === 'radiator' && state.radiatorDimensions) {
+                width = state.radiatorDimensions.width * state.pxPerMM;
+                height = state.radiatorDimensions.height * state.pxPerMM;
+            } else if (state.mode === 'cylinder' && state.cylinderDimensions) {
+                width = state.cylinderDimensions.diameter * state.pxPerMM;
+                height = state.cylinderDimensions.height * state.pxPerMM;
+            } else {
+                return false;
+            }
+
+            const objX = state.position.x - width / 2;
+            const objY = state.position.y - height / 2;
+
+            return x >= objX && x <= objX + width && y >= objY && y <= objY + height;
+        }
+
+        function redrawObjectAtNewPosition() {
+            if (state.mode === 'boiler') {
+                drawBoilerWithClearances();
+            } else if (state.mode === 'radiator') {
+                drawRadiatorWithClearances();
+            } else if (state.mode === 'cylinder') {
+                drawCylinderOnCanvas();
+            }
+        }
+
+        function showMessage(msg) {
+            const statusDiv = document.getElementById('positionStatus');
+            if (statusDiv) {
+                const originalText = statusDiv.textContent;
+                statusDiv.textContent = msg;
+                setTimeout(() => {
+                    statusDiv.textContent = originalText;
+                }, 2000);
             }
         }
 
