@@ -1,11 +1,11 @@
 Type,Brand,Model/Range,Position/Scenario,Clearance (mm),Special Rules
-Any,Worcester,8000/4000/Ri,To opening (window/vent) horizontally,1500,
-Any,Worcester,8000/4000/Ri,To opening horizontally if 300mm above,500,
-Any,Worcester,8000/4000/Ri,Adjacent to boundary,300,"Unless causing nuisance"
-Any,Worcester,8000/4000/Ri,To skylight/opening vertically,600,"If within 1500mm must be 300mm above"
-Any,Worcester,8000/4000/Ri,To vertical structure horizontal,500,"Not needed if terminal 300mm above structure"
+Any,Worcester,8000/4000/Ri,To opening/vent when below window,1500,
+Any,Worcester,8000/4000/Ri,To opening/vent when side or above,600,
+Any,Worcester,8000/4000/Ri,Adjacent to boundary,300,"Unless causing nuisance – BS5440 guidance. Boundary extends to centre line of paths/streets/rights of way/canals/rivers/railways"
+Any,Worcester,8000/4000/Ri,To opening in adjacent building,2000,"Flue duct outlet to boundaries – BS5440 guidance"
 Any,Worcester,8000/4000/Ri,Diagonal from pitched roof,400,"500mm in snow regions"
-Any,Worcester,8000/4000/Ri,Separation vertical ↔ horizontal,1200,
+Any,Worcester,8000/4000/Ri,Separation between vertical and horizontal flue,1200,"Measured between terminals"
+Any,Worcester,8000/4000/Ri,Vertically from terminal on same wall,1500,
 Any,Worcester,8000/4000/Ri,Prohibited zone,,"Terminal must not penetrate shaded area (manual figs)"
 Any,Vaillant,ecoFIT/ecoTEC,Boundary vertical,300,
 Any,Vaillant,ecoFIT/ecoTEC,To window/door/vent vertically,300,
