@@ -1,10 +1,24 @@
 Type,Brand,Model/Range,Position/Scenario,Clearance (mm),Special Rules
-Any,Worcester,8000/4000/Ri,Below eaves/gutters/pipes,200,"75mm in Worcester 4000 if extending flue past overhang by 100mm"
-Any,Worcester,8000/4000/Ri,Adjacent to boundary,300,"Unless causing nuisance – BS5440 guidance"
-Any,Worcester,8000/4000/Ri,Opening (window/door/vent) below/side/above,300,"150mm for change of fabric (Ri); 300mm all others"
-Any,Worcester,8000/4000/Ri,Opposite opening,2000,
+Any,Worcester,8000/4000/Ri,Below eaves,200,"Can be reduced to 25mm if flue terminal extended 100mm past overhang. Telescopic flue joint must be sealed with silicone if external"
+Any,Worcester,8000/4000/Ri,Below gutters/pipes/drains,75,"Can be reduced to 25mm if flue terminal extended 100mm past overhang. Telescopic flue joint must be sealed with silicone if external"
+Any,Worcester,8000/4000/Ri,Below eaves/balconies/car ports,25,"Only if flue terminal extended to clear any overhang. Telescopic flue joint must be sealed with silicone if external"
+Any,Worcester,8000/4000/Ri,Adjacent to boundary,300,"Unless causing nuisance – BS5440 guidance. Boundary extends to centre line of paths/streets/rights of way/canals/rivers/railways"
+Any,Worcester,8000/4000/Ri,Terminals facing each other,1200,"Separation measured between terminals"
+Any,Worcester,8000/4000/Ri,Distance to surface/boundary facing terminal,600,"Unless causing nuisance – BS5440 guidance"
+Any,Worcester,8000/4000/Ri,To opening/vent when below window,1500,
+Any,Worcester,8000/4000/Ri,To opening/vent when side or above,600,
+Any,Worcester,8000/4000/Ri,Diagonal to opening door/air vent/opening window,600,
+Any,Worcester,8000/4000/Ri,Above/below/either side opening door/air vent/opening window,300,
+Any,Worcester,8000/4000/Ri,From opening or vented window,300,
+Any,Worcester,8000/4000/Ri,To fixed unvented window,150,
 Any,Worcester,8000/4000/Ri,Internal/external corner,300,
-Any,Worcester,8000/4000/Ri,Lightwell,600,"300mm each side; flue max 1000mm from top"
+Any,Worcester,8000/4000/Ri,Above surface (ground/floor/roof),300,
+Any,Worcester,8000/4000/Ri,Below ground in open lightwell,600,"300mm clearance either side and below. Terminal max 1000mm from top of lightwell"
+Any,Worcester,8000/4000/Ri,LPG storage horizontal,1000,
+Any,Worcester,8000/4000/Ri,LPG storage above,300,
+Any,Worcester,8000/4000/Ri,To opening in adjacent building,2000,"Flue duct outlet to boundaries – BS5440 guidance"
+Any,Worcester,8000/4000/Ri,Horizontally from terminal on same wall,300,
+Any,Worcester,8000/4000/Ri,Vertically from terminal on same wall,1500,
 Any,Worcester,8000/4000/Ri,Above ground,2000,"Guard required below 2m"
 Any,Vaillant,ecoFIT/ecoTEC,Below eaves/gutters/pipes,25,"If extended past overhang; otherwise 200/75 normal"
 Any,Vaillant,ecoFIT/ecoTEC,Boundary,300,
