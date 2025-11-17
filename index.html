@@ -2235,9 +2235,8 @@
         function handleCylinderPositionClick(e) {
             if (state.isCalibrating || state.isMovingObject) return;
 
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * state.canvasScale;
-            const y = (e.clientY - rect.top) * state.canvasScale;
+            // Use proper coordinate transformation for zoom/pan
+            const {x, y} = getCanvasCoordinates(e);
 
             // Add cylinder to placed objects array
             state.placedObjects.push({
@@ -2470,9 +2469,8 @@
         function handleBoilerPositionClick(e) {
             if (state.isCalibrating || state.isMovingObject) return;
 
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * state.canvasScale;
-            const y = (e.clientY - rect.top) * state.canvasScale;
+            // Use proper coordinate transformation for zoom/pan
+            const {x, y} = getCanvasCoordinates(e);
 
             // Add boiler to placed objects array
             state.placedObjects.push({
@@ -2502,9 +2500,8 @@
         function handleRadiatorPositionClick(e) {
             if (state.isCalibrating || state.isMovingObject) return;
 
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * state.canvasScale;
-            const y = (e.clientY - rect.top) * state.canvasScale;
+            // Use proper coordinate transformation for zoom/pan
+            const {x, y} = getCanvasCoordinates(e);
 
             // Add radiator to placed objects array
             state.placedObjects.push({
@@ -2865,11 +2862,14 @@
             let x = (e.clientX - rect.left) * state.canvasScale;
             let y = (e.clientY - rect.top) * state.canvasScale;
 
-            // Reverse zoom and pan transformation
+            // Reverse zoom and pan transformation to match redrawCanvasWithObstacles
+            // The canvas transform applies: translate(pan), scale(zoom), translate(center offset)
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
-            x = (x - (centerX - centerX * state.zoomLevel) - state.panX) / state.zoomLevel;
-            y = (y - (centerY - centerY * state.zoomLevel) - state.panY) / state.zoomLevel;
+
+            // Reverse transformations: undo pan, then undo scale, then undo center offset
+            x = (x - state.panX - (centerX - centerX * state.zoomLevel)) / state.zoomLevel;
+            y = (y - state.panY - (centerY - centerY * state.zoomLevel)) / state.zoomLevel;
 
             return {x, y};
         }
@@ -3104,9 +3104,8 @@
         function handleLongPressStart(e) {
             if (!canMoveObject()) return;
 
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * state.canvasScale;
-            const y = (e.clientY - rect.top) * state.canvasScale;
+            // Use proper coordinate transformation for zoom/pan
+            const {x, y} = getCanvasCoordinates(e);
 
             // Check if click is on placed object
             const objectIndex = isClickOnObject(x, y);
@@ -3126,9 +3125,12 @@
             if (!canMoveObject() || e.touches.length !== 1) return;
 
             e.preventDefault();
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
-            const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
+            // Create fake event for getCanvasCoordinates
+            const fakeEvent = {
+                clientX: e.touches[0].clientX,
+                clientY: e.touches[0].clientY
+            };
+            const {x, y} = getCanvasCoordinates(fakeEvent);
 
             const objectIndex = isClickOnObject(x, y);
             if (objectIndex >= 0) {
@@ -3151,9 +3153,8 @@
                 return;
             }
 
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * state.canvasScale;
-            const y = (e.clientY - rect.top) * state.canvasScale;
+            // Use proper coordinate transformation for zoom/pan
+            const {x, y} = getCanvasCoordinates(e);
 
             // Update position of the object being moved
             if (state.movingObjectIndex !== null && state.placedObjects[state.movingObjectIndex]) {
@@ -3175,9 +3176,12 @@
             }
 
             e.preventDefault();
-            const rect = state.canvas.getBoundingClientRect();
-            const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
-            const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
+            // Create fake event for getCanvasCoordinates
+            const fakeEvent = {
+                clientX: e.touches[0].clientX,
+                clientY: e.touches[0].clientY
+            };
+            const {x, y} = getCanvasCoordinates(fakeEvent);
 
             // Update position of the object being moved
             if (state.movingObjectIndex !== null && state.placedObjects[state.movingObjectIndex]) {
