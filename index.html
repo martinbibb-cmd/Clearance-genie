@@ -976,7 +976,10 @@
             // Long press move state
             isLongPressing: false,
             longPressTimer: null,
-            isMovingObject: false
+            isMovingObject: false,
+            movingObjectIndex: null,
+            // Placed objects array for multiple boilers/cylinders/radiators
+            placedObjects: []
         };
 
         // CSV Parsing and Loading Functions
@@ -2230,18 +2233,190 @@
         }
 
         function handleCylinderPositionClick(e) {
-            if (state.isCalibrating) return;
+            if (state.isCalibrating || state.isMovingObject) return;
 
             const rect = state.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * state.canvasScale;
             const y = (e.clientY - rect.top) * state.canvasScale;
 
+            // Add cylinder to placed objects array
+            state.placedObjects.push({
+                type: 'cylinder',
+                position: {x, y},
+                dimensions: {...state.cylinderDimensions},
+                info: state.cylinderInfo ? {...state.cylinderInfo} : null
+            });
+
+            // Keep for backwards compatibility
             state.position = {x, y};
 
-            // Draw cylinder
-            drawCylinderOnCanvas();
+            // Redraw all objects
+            redrawAllPlacedObjects();
 
-            console.log('Cylinder placed at:', state.position);
+            console.log('Cylinder placed at:', {x, y}, 'Total objects:', state.placedObjects.length);
+        }
+
+        function redrawAllPlacedObjects() {
+            // Redraw base
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            // Draw all placed objects
+            state.placedObjects.forEach((obj, index) => {
+                if (obj.type === 'boiler') {
+                    drawBoilerObject(obj);
+                } else if (obj.type === 'cylinder') {
+                    drawCylinderObject(obj);
+                } else if (obj.type === 'radiator') {
+                    drawRadiatorObject(obj);
+                }
+            });
+        }
+
+        function drawBoilerObject(obj) {
+            const boilerWidthPx = obj.dimensions.width * state.pxPerMM;
+            const boilerHeightPx = obj.dimensions.height * state.pxPerMM;
+
+            const clearanceTopPx = obj.clearances.top * state.pxPerMM;
+            const clearanceBottomPx = obj.clearances.bottom * state.pxPerMM;
+            const clearanceLeftPx = obj.clearances.left * state.pxPerMM;
+            const clearanceRightPx = obj.clearances.right * state.pxPerMM;
+
+            const boilerX = obj.position.x - boilerWidthPx / 2;
+            const boilerY = obj.position.y - boilerHeightPx / 2;
+
+            // Draw clearance zone (red transparent)
+            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+            state.ctx.fillRect(
+                boilerX - clearanceLeftPx,
+                boilerY - clearanceTopPx,
+                boilerWidthPx + clearanceLeftPx + clearanceRightPx,
+                boilerHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+
+            // Draw clearance outline (red dashed)
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 3;
+            state.ctx.setLineDash([10, 5]);
+            state.ctx.strokeRect(
+                boilerX - clearanceLeftPx,
+                boilerY - clearanceTopPx,
+                boilerWidthPx + clearanceLeftPx + clearanceRightPx,
+                boilerHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+            state.ctx.setLineDash([]);
+
+            // Draw boiler box (green solid)
+            state.ctx.fillStyle = 'rgba(72, 187, 120, 0.3)';
+            state.ctx.fillRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+            state.ctx.strokeStyle = '#48bb78';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(obj.position.x, obj.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Draw labels
+            state.ctx.fillStyle = '#333';
+            state.ctx.font = 'bold 16px Arial';
+            state.ctx.fillText(`Boiler ${obj.dimensions.width}×${obj.dimensions.height}mm`, boilerX + 10, boilerY + 25);
+        }
+
+        function drawCylinderObject(obj) {
+            const diameterPx = obj.dimensions.diameter * state.pxPerMM;
+            const heightPx = obj.dimensions.height * state.pxPerMM;
+
+            const cylinderX = obj.position.x - diameterPx / 2;
+            const cylinderY = obj.position.y - heightPx / 2;
+
+            // Draw cylinder outline (rectangle with rounded ends for side view)
+            state.ctx.fillStyle = 'rgba(100, 150, 255, 0.3)';
+            state.ctx.fillRect(cylinderX, cylinderY, diameterPx, heightPx);
+
+            state.ctx.strokeStyle = '#4a90e2';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(cylinderX, cylinderY, diameterPx, heightPx);
+
+            // Draw rounded top and bottom
+            state.ctx.beginPath();
+            state.ctx.ellipse(obj.position.x, cylinderY, diameterPx / 2, diameterPx / 8, 0, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            state.ctx.beginPath();
+            state.ctx.ellipse(obj.position.x, cylinderY + heightPx, diameterPx / 2, diameterPx / 8, 0, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(obj.position.x, obj.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Label
+            state.ctx.fillStyle = '#4a90e2';
+            state.ctx.font = 'bold 16px Arial';
+            const label = `Cylinder ${obj.dimensions.height}×${obj.dimensions.diameter}mm`;
+            state.ctx.fillText(label, cylinderX + 10, cylinderY + 25);
+        }
+
+        function drawRadiatorObject(obj) {
+            const radiatorWidthPx = obj.dimensions.width * state.pxPerMM;
+            const radiatorHeightPx = obj.dimensions.height * state.pxPerMM;
+
+            const clearanceTopPx = obj.clearances.top * state.pxPerMM;
+            const clearanceBottomPx = obj.clearances.bottom * state.pxPerMM;
+            const clearanceLeftPx = obj.clearances.left * state.pxPerMM;
+            const clearanceRightPx = obj.clearances.right * state.pxPerMM;
+
+            const radiatorX = obj.position.x - radiatorWidthPx / 2;
+            const radiatorY = obj.position.y - radiatorHeightPx / 2;
+
+            // Draw clearance zone (red transparent)
+            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+            state.ctx.fillRect(
+                radiatorX - clearanceLeftPx,
+                radiatorY - clearanceTopPx,
+                radiatorWidthPx + clearanceLeftPx + clearanceRightPx,
+                radiatorHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+
+            // Draw clearance outline (red dashed)
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 3;
+            state.ctx.setLineDash([10, 5]);
+            state.ctx.strokeRect(
+                radiatorX - clearanceLeftPx,
+                radiatorY - clearanceTopPx,
+                radiatorWidthPx + clearanceLeftPx + clearanceRightPx,
+                radiatorHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+            state.ctx.setLineDash([]);
+
+            // Draw radiator box (orange solid for visibility)
+            state.ctx.fillStyle = 'rgba(237, 137, 54, 0.3)';
+            state.ctx.fillRect(radiatorX, radiatorY, radiatorWidthPx, radiatorHeightPx);
+
+            state.ctx.strokeStyle = '#ed8936';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(radiatorX, radiatorY, radiatorWidthPx, radiatorHeightPx);
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(obj.position.x, obj.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Draw labels
+            state.ctx.fillStyle = '#333';
+            state.ctx.font = 'bold 16px Arial';
+            state.ctx.fillText(`Radiator ${obj.dimensions.width}×${obj.dimensions.height}mm`, radiatorX + 10, radiatorY + 25);
         }
 
         function drawCylinderOnCanvas() {
@@ -2293,51 +2468,67 @@
         }
 
         function handleBoilerPositionClick(e) {
-            if (state.isCalibrating) return;
+            if (state.isCalibrating || state.isMovingObject) return;
 
             const rect = state.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * state.canvasScale;
             const y = (e.clientY - rect.top) * state.canvasScale;
 
+            // Add boiler to placed objects array
+            state.placedObjects.push({
+                type: 'boiler',
+                position: {x, y},
+                dimensions: {...state.boilerDimensions},
+                clearances: {...state.boilerClearances}
+            });
+
+            // Keep for backwards compatibility
             state.position = {x, y};
 
-            // Draw boiler box and clearances
-            drawBoilerWithClearances();
+            // Redraw all objects
+            redrawAllPlacedObjects();
 
-            document.getElementById('positionStatus').textContent = '✅ Boiler position set! Edit dimensions and mark obstacles below.';
+            document.getElementById('positionStatus').textContent = `✅ Boiler ${state.placedObjects.filter(o => o.type === 'boiler').length} placed! Click to add more or switch modes.`;
 
-            // Remove click listener
-            state.canvas.removeEventListener('click', handleBoilerPositionClick);
-
+            // Don't remove click listener - allow multiple placements
             // Show boiler editing controls
-            document.getElementById('boilerEditingSection').style.display = 'block';
-
-            // Show obstacle marking UI
-            document.getElementById('obstacleMarkingSection').style.display = 'block';
+            if (document.getElementById('boilerEditingSection').style.display !== 'block') {
+                document.getElementById('boilerEditingSection').style.display = 'block';
+                // Show obstacle marking UI
+                document.getElementById('obstacleMarkingSection').style.display = 'block';
+            }
         }
 
         function handleRadiatorPositionClick(e) {
-            if (state.isCalibrating) return;
+            if (state.isCalibrating || state.isMovingObject) return;
 
             const rect = state.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) * state.canvasScale;
             const y = (e.clientY - rect.top) * state.canvasScale;
 
+            // Add radiator to placed objects array
+            state.placedObjects.push({
+                type: 'radiator',
+                position: {x, y},
+                dimensions: {...state.radiatorDimensions},
+                clearances: {...state.radiatorClearances}
+            });
+
+            // Keep for backwards compatibility
             state.position = {x, y};
 
-            // Draw radiator box and clearances
-            drawRadiatorWithClearances();
+            // Redraw all objects
+            redrawAllPlacedObjects();
 
-            document.getElementById('positionStatus').textContent = '✅ Radiator position set! Edit dimensions and mark obstacles below.';
+            document.getElementById('positionStatus').textContent = `✅ Radiator ${state.placedObjects.filter(o => o.type === 'radiator').length} placed! Click to add more or switch modes.`;
 
-            // Remove click listener
-            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
-
+            // Don't remove click listener - allow multiple placements
             // Show radiator editing controls
-            document.getElementById('radiatorEditingSection').style.display = 'block';
-
-            // Show obstacle marking UI
-            document.getElementById('obstacleMarkingSection').style.display = 'block';
+            if (document.getElementById('radiatorEditingSection').style.display !== 'block') {
+                document.getElementById('radiatorEditingSection').style.display = 'block';
+                // Show obstacle marking UI
+                document.getElementById('obstacleMarkingSection').style.display = 'block';
+            }
         }
 
         function populateObstacleButtons() {
@@ -2870,22 +3061,22 @@
         }
 
         function panUp() {
-            state.panY += 50;
+            state.panY += 150;
             applyZoomAndPan();
         }
 
         function panDown() {
-            state.panY -= 50;
+            state.panY -= 150;
             applyZoomAndPan();
         }
 
         function panLeft() {
-            state.panX += 50;
+            state.panX += 150;
             applyZoomAndPan();
         }
 
         function panRight() {
-            state.panX -= 50;
+            state.panX -= 150;
             applyZoomAndPan();
         }
 
@@ -2918,12 +3109,15 @@
             const y = (e.clientY - rect.top) * state.canvasScale;
 
             // Check if click is on placed object
-            if (isClickOnObject(x, y)) {
+            const objectIndex = isClickOnObject(x, y);
+            if (objectIndex >= 0) {
+                state.movingObjectIndex = objectIndex;
                 // Start long press timer
                 state.longPressTimer = setTimeout(() => {
                     state.isMovingObject = true;
                     state.canvas.style.cursor = 'move';
-                    showMessage('Moving object - drag to new position');
+                    const objType = state.placedObjects[objectIndex].type;
+                    showMessage(`Moving ${objType} - drag to new position`);
                 }, 500); // 500ms for long press
             }
         }
@@ -2936,10 +3130,13 @@
             const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
             const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
 
-            if (isClickOnObject(x, y)) {
+            const objectIndex = isClickOnObject(x, y);
+            if (objectIndex >= 0) {
+                state.movingObjectIndex = objectIndex;
                 state.longPressTimer = setTimeout(() => {
                     state.isMovingObject = true;
-                    showMessage('Moving object - drag to new position');
+                    const objType = state.placedObjects[objectIndex].type;
+                    showMessage(`Moving ${objType} - drag to new position`);
                 }, 500);
             }
         }
@@ -2958,11 +3155,14 @@
             const x = (e.clientX - rect.left) * state.canvasScale;
             const y = (e.clientY - rect.top) * state.canvasScale;
 
-            // Update position
-            state.position = {x, y};
-
-            // Redraw based on mode
-            redrawObjectAtNewPosition();
+            // Update position of the object being moved
+            if (state.movingObjectIndex !== null && state.placedObjects[state.movingObjectIndex]) {
+                state.placedObjects[state.movingObjectIndex].position = {x, y};
+                // Also update state.position for backwards compatibility
+                state.position = {x, y};
+                // Redraw all objects
+                redrawObjectAtNewPosition();
+            }
         }
 
         function handleObjectMoveTouch(e) {
@@ -2979,8 +3179,12 @@
             const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
             const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
 
-            state.position = {x, y};
-            redrawObjectAtNewPosition();
+            // Update position of the object being moved
+            if (state.movingObjectIndex !== null && state.placedObjects[state.movingObjectIndex]) {
+                state.placedObjects[state.movingObjectIndex].position = {x, y};
+                state.position = {x, y};
+                redrawObjectAtNewPosition();
+            }
         }
 
         function handleLongPressEnd() {
@@ -2991,48 +3195,45 @@
 
             if (state.isMovingObject) {
                 state.isMovingObject = false;
+                state.movingObjectIndex = null;
                 state.canvas.style.cursor = 'crosshair';
                 showMessage('Object moved successfully');
             }
         }
 
         function canMoveObject() {
-            return state.position && (state.mode === 'boiler' || state.mode === 'radiator' || state.mode === 'cylinder');
+            return state.placedObjects.length > 0;
         }
 
         function isClickOnObject(x, y) {
-            if (!state.position) return false;
+            // Check all placed objects, return index if found
+            for (let i = state.placedObjects.length - 1; i >= 0; i--) {
+                const obj = state.placedObjects[i];
+                let width, height;
 
-            // Check if click is within object bounds
-            let width, height;
+                if (obj.type === 'boiler' || obj.type === 'radiator') {
+                    width = obj.dimensions.width * state.pxPerMM;
+                    height = obj.dimensions.height * state.pxPerMM;
+                } else if (obj.type === 'cylinder') {
+                    width = obj.dimensions.diameter * state.pxPerMM;
+                    height = obj.dimensions.height * state.pxPerMM;
+                } else {
+                    continue;
+                }
 
-            if (state.mode === 'boiler' && state.boilerDimensions) {
-                width = state.boilerDimensions.width * state.pxPerMM;
-                height = state.boilerDimensions.height * state.pxPerMM;
-            } else if (state.mode === 'radiator' && state.radiatorDimensions) {
-                width = state.radiatorDimensions.width * state.pxPerMM;
-                height = state.radiatorDimensions.height * state.pxPerMM;
-            } else if (state.mode === 'cylinder' && state.cylinderDimensions) {
-                width = state.cylinderDimensions.diameter * state.pxPerMM;
-                height = state.cylinderDimensions.height * state.pxPerMM;
-            } else {
-                return false;
+                const objX = obj.position.x - width / 2;
+                const objY = obj.position.y - height / 2;
+
+                if (x >= objX && x <= objX + width && y >= objY && y <= objY + height) {
+                    return i; // Return index of clicked object
+                }
             }
 
-            const objX = state.position.x - width / 2;
-            const objY = state.position.y - height / 2;
-
-            return x >= objX && x <= objX + width && y >= objY && y <= objY + height;
+            return -1; // Not found
         }
 
         function redrawObjectAtNewPosition() {
-            if (state.mode === 'boiler') {
-                drawBoilerWithClearances();
-            } else if (state.mode === 'radiator') {
-                drawRadiatorWithClearances();
-            } else if (state.mode === 'cylinder') {
-                drawCylinderOnCanvas();
-            }
+            redrawAllPlacedObjects();
         }
 
         function showMessage(msg) {
