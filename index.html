@@ -3626,118 +3626,74 @@
         function drawWindowClearanceOnCanvas(ctx, points, clearanceMM, fillStyle, strokeStyle, dashPattern) {
             if (!points || points.length !== 4 || !state.pxPerMM) return;
 
-            const radiusPx = clearanceMM * state.pxPerMM;
+            // Calculate clearance in pixels
+            const clearancePx = clearanceMM * state.pxPerMM;
 
             // Apply 50% reduction for plume kit mode
-            const effectiveRadiusPx = state.plumeKitMode ? radiusPx * 0.5 : radiusPx;
+            const effectiveClearancePx = state.plumeKitMode ? clearancePx * 0.5 : clearancePx;
+
+            // Find bounding box of the window (min/max of all 4 corners)
+            const xs = points.map(p => p.x);
+            const ys = points.map(p => p.y);
+
+            const windowRect = {
+                left: Math.min(...xs),
+                top: Math.min(...ys),
+                right: Math.max(...xs),
+                bottom: Math.max(...ys)
+            };
+
+            const windowWidth = windowRect.right - windowRect.left;
+            const windowHeight = windowRect.bottom - windowRect.top;
+
+            // Clearance zone rectangle (expanded outward by clearance distance)
+            const clearanceRect = {
+                x: windowRect.left - effectiveClearancePx,
+                y: windowRect.top - effectiveClearancePx,
+                width: windowWidth + (effectiveClearancePx * 2),
+                height: windowHeight + (effectiveClearancePx * 2)
+            };
+
+            // Corner radius (proportional to clearance)
+            const cornerRadius = Math.min(effectiveClearancePx * 0.5, 50); // Cap at 50px for aesthetics
 
             // Save context state
-            const originalFillStyle = ctx.fillStyle;
-            const originalStrokeStyle = ctx.strokeStyle;
-            const originalLineWidth = ctx.lineWidth;
+            ctx.save();
 
+            // Draw the clearance zone
             ctx.fillStyle = fillStyle;
             ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = 3;
             if (dashPattern) ctx.setLineDash(dashPattern);
 
-            // Calculate window center for determining outward direction
-            const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-            const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-
-            // Calculate outward normals for each edge
-            const normals = [];
-            for (let i = 0; i < 4; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % 4];
-
-                // Edge vector
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const length = Math.sqrt(dx * dx + dy * dy);
-
-                if (length === 0) {
-                    normals.push({ x: 0, y: 0 });
-                    continue;
-                }
-
-                // Perpendicular vector (rotated 90° clockwise)
-                const perpX = dy / length;
-                const perpY = -dx / length;
-
-                // Check if perpendicular points outward
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-                const toCenterX = centerX - midX;
-                const toCenterY = centerY - midY;
-
-                // Dot product - if negative, perpendicular points outward
-                const dotProduct = perpX * toCenterX + perpY * toCenterY;
-                const outwardX = dotProduct < 0 ? perpX : -perpX;
-                const outwardY = dotProduct < 0 ? perpY : -perpY;
-
-                normals.push({ x: outwardX, y: outwardY });
-            }
-
-            // Build the clearance path as a continuous rounded polygon
+            // Draw rounded rectangle for clearance zone
             ctx.beginPath();
-
-            // Number of points for each corner arc (for smoothness)
-            const arcPoints = 12;
-
-            for (let i = 0; i < 4; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % 4];
-                const normal = normals[i];
-                const nextNormal = normals[(i + 1) % 4];
-
-                // Offset edge endpoints
-                const offsetP1X = p1.x + normal.x * effectiveRadiusPx;
-                const offsetP1Y = p1.y + normal.y * effectiveRadiusPx;
-                const offsetP2X = p2.x + normal.x * effectiveRadiusPx;
-                const offsetP2Y = p2.y + normal.y * effectiveRadiusPx;
-
-                // Draw offset edge
-                if (i === 0) {
-                    ctx.moveTo(offsetP1X, offsetP1Y);
-                }
-                ctx.lineTo(offsetP2X, offsetP2Y);
-
-                // Draw corner arc at p2
-                // Arc center is at the corner point
-                const arcCenterX = p2.x;
-                const arcCenterY = p2.y;
-
-                // Start angle: direction of current normal
-                const startAngle = Math.atan2(normal.y, normal.x);
-                // End angle: direction of next normal
-                const endAngle = Math.atan2(nextNormal.y, nextNormal.x);
-
-                // Calculate proper arc sweep
-                let angleDiff = endAngle - startAngle;
-                // Normalize to [-π, π]
-                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-
-                // Generate arc points
-                for (let j = 1; j <= arcPoints; j++) {
-                    const t = j / arcPoints;
-                    const angle = startAngle + angleDiff * t;
-                    const arcX = arcCenterX + Math.cos(angle) * effectiveRadiusPx;
-                    const arcY = arcCenterY + Math.sin(angle) * effectiveRadiusPx;
-                    ctx.lineTo(arcX, arcY);
-                }
-            }
-
-            ctx.closePath();
+            ctx.roundRect(
+                clearanceRect.x,
+                clearanceRect.y,
+                clearanceRect.width,
+                clearanceRect.height,
+                cornerRadius
+            );
             ctx.fill();
             ctx.stroke();
 
+            // Draw window outline (for clarity)
+            ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)'; // Blue for window
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]); // Solid line for window
+            ctx.beginPath();
+            ctx.roundRect(
+                windowRect.left,
+                windowRect.top,
+                windowWidth,
+                windowHeight,
+                cornerRadius * 0.3
+            );
+            ctx.stroke();
+
             // Restore context state
-            if (dashPattern) ctx.setLineDash([]);
-            ctx.fillStyle = originalFillStyle;
-            ctx.strokeStyle = originalStrokeStyle;
-            ctx.lineWidth = originalLineWidth;
+            ctx.restore();
         }
 
         // Draw window clearance with circles at corners and parallel lines (uses state.ctx)
