@@ -2646,9 +2646,9 @@
                 const displayName = type.replace(/-/g, ' ');
                 firstMessage = `👆 Tap location of ${displayName}`;
             }
-            // 4-point obstacles (windows)
+            // 2-point obstacles (windows)
             else if (type === 'window-openable' || type === 'window-fixed') {
-                needsPoints = 4;
+                needsPoints = 2;
                 const windowType = type === 'window-openable' ? 'openable window' : 'fixed window';
                 firstMessage = `👆 Tap top-left corner of ${windowType}`;
             }
@@ -2705,15 +2705,14 @@
             state.ctx.arc(x, y, 8, 0, Math.PI * 2);
             state.ctx.fill();
 
-            // Draw connecting lines for windows (4-point marking)
-            if ((state.markingMode === 'window-openable' || state.markingMode === 'window-fixed') && state.markingPoints.length > 1) {
+            // Draw rectangle preview for windows (2-point marking)
+            if ((state.markingMode === 'window-openable' || state.markingMode === 'window-fixed') && state.markingPoints.length === 1) {
+                const firstPoint = state.markingPoints[0];
+                const width = x - firstPoint.x;
+                const height = y - firstPoint.y;
                 state.ctx.strokeStyle = '#667eea';
                 state.ctx.lineWidth = 2;
-                state.ctx.beginPath();
-                const prevPoint = state.markingPoints[state.markingPoints.length - 2];
-                state.ctx.moveTo(prevPoint.x, prevPoint.y);
-                state.ctx.lineTo(x, y);
-                state.ctx.stroke();
+                state.ctx.strokeRect(firstPoint.x, firstPoint.y, width, height);
             }
 
             if (state.markingPoints.length < needsPoints) {
@@ -2723,8 +2722,7 @@
                                  state.markingMode === 'window-fixed' ? 'fixed window' : state.markingMode;
 
                 if (state.markingMode === 'window-openable' || state.markingMode === 'window-fixed') {
-                    const messages = ['top-right corner', 'bottom-right corner', 'bottom-left corner'];
-                    status.textContent = `👆 Tap ${messages[state.markingPoints.length - 1]} of ${windowType}`;
+                    status.textContent = `👆 Tap bottom-right corner of ${windowType}`;
                 } else {
                     status.textContent = `👆 Tap bottom-right corner of ${state.markingMode}`;
                 }
@@ -2751,19 +2749,16 @@
                     height: pointSize
                 };
             } else if (type === 'window-openable' || type === 'window-fixed') {
-                // 4-point window (quadrilateral)
-                // Calculate bounding box for quick operations
-                const xs = points.map(p => p.x);
-                const ys = points.map(p => p.y);
-                const x1 = Math.min(...xs);
-                const y1 = Math.min(...ys);
-                const x2 = Math.max(...xs);
-                const y2 = Math.max(...ys);
+                // 2-point window (top-left and bottom-right corners)
+                const x1 = Math.min(points[0].x, points[1].x);
+                const y1 = Math.min(points[0].y, points[1].y);
+                const x2 = Math.max(points[0].x, points[1].x);
+                const y2 = Math.max(points[0].y, points[1].y);
 
                 obstacle = {
                     type: 'window',
                     windowType: type === 'window-openable' ? 'openable' : 'fixed',
-                    points: points, // Store all 4 points for precise rendering
+                    points: [{x: x1, y: y1}, {x: x2, y: y2}], // Store 2 points (top-left, bottom-right)
                     x: x1,
                     y: y1,
                     width: x2 - x1,
@@ -3241,18 +3236,8 @@
                 state.ctx.strokeStyle = color;
                 state.ctx.lineWidth = 4;
 
-                // Draw window as polygon if it has 4 points
-                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
-                    state.ctx.beginPath();
-                    state.ctx.moveTo(obs.points[0].x, obs.points[0].y);
-                    for (let i = 1; i < obs.points.length; i++) {
-                        state.ctx.lineTo(obs.points[i].x, obs.points[i].y);
-                    }
-                    state.ctx.closePath();
-                    state.ctx.stroke();
-                } else {
-                    state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-                }
+                // Draw all obstacles as rectangles
+                state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 
                 // Label
                 state.ctx.fillStyle = color;
@@ -3347,7 +3332,7 @@
                     };
 
                     // Store window points for specialized rendering
-                    if (obs.type === 'window' && obs.points && obs.points.length === 4) {
+                    if (obs.type === 'window' && obs.points && obs.points.length === 2) {
                         zone.windowPoints = obs.points;
                         zone.windowType = obs.windowType;
                     }
@@ -3541,156 +3526,89 @@
             if (stroke) ctx.stroke();
         }
 
-        // Check if a point is inside window clearance zone
+        // Check if a point is inside window clearance zone (thick-line approach)
         function isPointInWindowClearance(x, y, points, clearanceMM) {
-            if (!points || points.length !== 4 || !state.pxPerMM) return false;
+            if (!points || points.length !== 2 || !state.pxPerMM) return false;
 
-            const radiusPx = clearanceMM * state.pxPerMM;
-            const effectiveRadiusPx = state.plumeKitMode ? radiusPx * 0.5 : radiusPx;
+            const clearancePx = clearanceMM * state.pxPerMM;
+            const effectiveClearancePx = state.plumeKitMode ? clearancePx * 0.5 : clearancePx;
 
-            // Calculate window center for determining outward direction
-            const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-            const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+            // Extract window boundaries
+            const topLeft = points[0];
+            const bottomRight = points[1];
+            const windowLeft = topLeft.x;
+            const windowTop = topLeft.y;
+            const windowRight = bottomRight.x;
+            const windowBottom = bottomRight.y;
 
-            // Check if point is inside the window itself (should not be in clearance)
-            // Use simple point-in-polygon test
-            let insideWindow = false;
-            for (let i = 0, j = 3; i < 4; j = i++) {
-                const xi = points[i].x, yi = points[i].y;
-                const xj = points[j].x, yj = points[j].y;
-                const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-                if (intersect) insideWindow = !insideWindow;
-            }
-            if (insideWindow) return false;
+            // The clearance zone extends from the window edge outward by the clearance distance
+            // Outer boundary (clearance limit)
+            const outerLeft = windowLeft - effectiveClearancePx;
+            const outerTop = windowTop - effectiveClearancePx;
+            const outerRight = windowRight + effectiveClearancePx;
+            const outerBottom = windowBottom + effectiveClearancePx;
 
-            // Check if point is inside any corner clearance circle
-            for (let i = 0; i < 4; i++) {
-                const distance = Math.sqrt(
-                    Math.pow(x - points[i].x, 2) +
-                    Math.pow(y - points[i].y, 2)
-                );
-                if (distance <= effectiveRadiusPx) {
-                    return true;
-                }
-            }
+            // Inner boundary (window edge)
+            const innerLeft = windowLeft;
+            const innerTop = windowTop;
+            const innerRight = windowRight;
+            const innerBottom = windowBottom;
 
-            // Check if point is in the clearance zone along any edge
-            for (let i = 0; i < 4; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % 4];
+            // Check if point is inside the outer rectangle
+            const insideOuter = x >= outerLeft && x <= outerRight &&
+                               y >= outerTop && y <= outerBottom;
 
-                // Calculate edge vector
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const length = Math.sqrt(dx * dx + dy * dy);
+            // Check if point is inside the inner rectangle (the window itself)
+            const insideInner = x >= innerLeft && x <= innerRight &&
+                               y >= innerTop && y <= innerBottom;
 
-                if (length === 0) continue;
-
-                // Perpendicular vector (rotated 90° clockwise)
-                const perpX = dy / length;
-                const perpY = -dx / length;
-
-                // Check if perpendicular points outward
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-                const toCenterX = centerX - midX;
-                const toCenterY = centerY - midY;
-
-                // Dot product - if negative, perpendicular points outward
-                const dotProduct = perpX * toCenterX + perpY * toCenterY;
-                const outwardX = dotProduct < 0 ? perpX : -perpX;
-                const outwardY = dotProduct < 0 ? perpY : -perpY;
-
-                // Distance from point to edge (in outward direction)
-                const toPointX = x - p1.x;
-                const toPointY = y - p1.y;
-                const distanceToEdge = toPointX * outwardX + toPointY * outwardY;
-
-                // Check if point is in clearance zone for this edge
-                if (distanceToEdge > 0 && distanceToEdge <= effectiveRadiusPx) {
-                    // Check if point projects onto the edge segment
-                    const edgeX = dx / length;
-                    const edgeY = dy / length;
-                    const projection = toPointX * edgeX + toPointY * edgeY;
-
-                    if (projection >= 0 && projection <= length) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            // Point is in clearance zone if it's inside outer but not inside inner
+            return insideOuter && !insideInner;
         }
 
-        // Draw window clearance on any canvas context
+        // Draw window clearance on any canvas context using thick lines
         function drawWindowClearanceOnCanvas(ctx, points, clearanceMM, fillStyle, strokeStyle, dashPattern) {
-            if (!points || points.length !== 4 || !state.pxPerMM) return;
+            if (!points || points.length !== 2 || !state.pxPerMM) return;
 
-            // Calculate clearance in pixels
+            // Calculate clearance in pixels - this becomes the line thickness
             const clearancePx = clearanceMM * state.pxPerMM;
 
             // Apply 50% reduction for plume kit mode
-            const effectiveClearancePx = state.plumeKitMode ? clearancePx * 0.5 : clearancePx;
+            const lineThickness = state.plumeKitMode ? clearancePx * 0.5 : clearancePx;
 
-            // Find bounding box of the window (min/max of all 4 corners)
-            const xs = points.map(p => p.x);
-            const ys = points.map(p => p.y);
+            // Extract top-left and bottom-right corners
+            const topLeft = points[0];
+            const bottomRight = points[1];
 
-            const windowRect = {
-                left: Math.min(...xs),
-                top: Math.min(...ys),
-                right: Math.max(...xs),
-                bottom: Math.max(...ys)
-            };
-
-            const windowWidth = windowRect.right - windowRect.left;
-            const windowHeight = windowRect.bottom - windowRect.top;
-
-            // Clearance zone rectangle (expanded outward by clearance distance)
-            const clearanceRect = {
-                x: windowRect.left - effectiveClearancePx,
-                y: windowRect.top - effectiveClearancePx,
-                width: windowWidth + (effectiveClearancePx * 2),
-                height: windowHeight + (effectiveClearancePx * 2)
-            };
-
-            // Corner radius (proportional to clearance)
-            const cornerRadius = Math.min(effectiveClearancePx * 0.5, 50); // Cap at 50px for aesthetics
+            // Window rectangle dimensions
+            const windowLeft = topLeft.x;
+            const windowTop = topLeft.y;
+            const windowRight = bottomRight.x;
+            const windowBottom = bottomRight.y;
+            const windowWidth = windowRight - windowLeft;
+            const windowHeight = windowBottom - windowTop;
 
             // Save context state
             ctx.save();
 
-            // Draw the clearance zone
-            ctx.fillStyle = fillStyle;
+            // Draw the thick rectangle border (the clearance zone)
+            // Since strokeRect centers the line on the path, offset the path outward by halfThickness
+            // so the INNER edge of the stroke aligns with the window boundary
+            const halfThickness = lineThickness / 2;
+
             ctx.strokeStyle = strokeStyle;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = lineThickness;
+            ctx.lineCap = 'round'; // Rounded corners
+            ctx.lineJoin = 'round'; // Rounded corners
             if (dashPattern) ctx.setLineDash(dashPattern);
 
-            // Draw rounded rectangle for clearance zone
-            ctx.beginPath();
-            ctx.roundRect(
-                clearanceRect.x,
-                clearanceRect.y,
-                clearanceRect.width,
-                clearanceRect.height,
-                cornerRadius
+            // Draw rectangle - path is offset outward so inner edge of stroke = window boundary
+            ctx.strokeRect(
+                windowLeft - halfThickness,
+                windowTop - halfThickness,
+                windowWidth + lineThickness,
+                windowHeight + lineThickness
             );
-            ctx.fill();
-            ctx.stroke();
-
-            // Draw window outline (for clarity)
-            ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)'; // Blue for window
-            ctx.lineWidth = 2;
-            ctx.setLineDash([]); // Solid line for window
-            ctx.beginPath();
-            ctx.roundRect(
-                windowRect.left,
-                windowRect.top,
-                windowWidth,
-                windowHeight,
-                cornerRadius * 0.3
-            );
-            ctx.stroke();
 
             // Restore context state
             ctx.restore();
@@ -3729,18 +3647,8 @@
                 state.ctx.strokeStyle = color;
                 state.ctx.lineWidth = 3;
 
-                // Draw window as polygon if it has 4 points
-                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
-                    state.ctx.beginPath();
-                    state.ctx.moveTo(obs.points[0].x, obs.points[0].y);
-                    for (let i = 1; i < obs.points.length; i++) {
-                        state.ctx.lineTo(obs.points[i].x, obs.points[i].y);
-                    }
-                    state.ctx.closePath();
-                    state.ctx.stroke();
-                } else {
-                    state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-                }
+                // Draw all obstacles as rectangles
+                state.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 
                 // Label the object
                 state.ctx.fillStyle = color;
@@ -3990,18 +3898,8 @@
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
 
-                // Draw window as polygon if it has 4 points
-                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
-                    ctx.beginPath();
-                    ctx.moveTo(obs.points[0].x, obs.points[0].y);
-                    for (let i = 1; i < obs.points.length; i++) {
-                        ctx.lineTo(obs.points[i].x, obs.points[i].y);
-                    }
-                    ctx.closePath();
-                    ctx.stroke();
-                } else {
-                    ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-                }
+                // Draw all obstacles as rectangles
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 
                 ctx.fillStyle = color;
                 ctx.font = 'bold 16px Arial';
@@ -4111,18 +4009,8 @@
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
 
-                // Draw window as polygon if it has 4 points
-                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
-                    ctx.beginPath();
-                    ctx.moveTo(obs.points[0].x, obs.points[0].y);
-                    for (let i = 1; i < obs.points.length; i++) {
-                        ctx.lineTo(obs.points[i].x, obs.points[i].y);
-                    }
-                    ctx.closePath();
-                    ctx.stroke();
-                } else {
-                    ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-                }
+                // Draw all obstacles as rectangles
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 
                 ctx.fillStyle = color;
                 ctx.font = 'bold 16px Arial';
