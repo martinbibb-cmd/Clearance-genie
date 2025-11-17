@@ -403,6 +403,7 @@
                 <p>Card Width: <span id="cardWidthDisplay">-</span> pixels (should be ~85.6mm)</p>
                 <p>Card Height: <span id="cardHeightDisplay">-</span> pixels (should be ~53.98mm)</p>
                 <p>Accuracy: <span id="accuracyDisplay">-</span></p>
+                <p>Plumb Line: <span id="plumbDisplay">-</span></p>
                 <button class="btn" onclick="resetCalibration()" style="margin-top: 10px;">
                     🔄 Recalibrate
                 </button>
@@ -438,6 +439,51 @@
                         <option value="ideal">Ideal</option>
                     </select>
                 </label>
+            </div>
+
+            <div id="boilerEditingSection" style="display: none;">
+                <div class="instructions">
+                    <h3>Edit Boiler Dimensions & Clearances</h3>
+                    <p>Adjust the dimensions and clearances as needed:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">Boiler Dimensions (mm)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Height:</label>
+                            <input type="number" id="boilerHeight" value="600" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Width:</label>
+                            <input type="number" id="boilerWidth" value="390" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                    </div>
+
+                    <h4 style="color: #667eea; margin-bottom: 15px; margin-top: 20px;">Service Clearances (mm)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Top:</label>
+                            <input type="number" id="clearanceTop" value="170" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Bottom:</label>
+                            <input type="number" id="clearanceBottom" value="200" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Left:</label>
+                            <input type="number" id="clearanceLeft" value="5" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Right:</label>
+                            <input type="number" id="clearanceRight" value="5" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="updateBoilerDisplay()" style="margin-top: 15px;">
+                        🔄 Update Display
+                    </button>
+                </div>
             </div>
 
             <div id="obstacleMarkingSection" style="display: none;">
@@ -482,6 +528,9 @@
             </div>
 
             <div class="status" id="analysisStatus"></div>
+
+            <div id="objectKey" style="display: none; background: #f7fafc; padding: 20px; border-radius: 8px; margin: 15px 0;">
+            </div>
 
             <div class="results-panel" id="resultsPanel">
                 <div class="zone-legend">
@@ -577,7 +626,10 @@
             obstacles: [], // Manual obstacles marked by user
             markingMode: null, // Current obstacle type being marked
             markingPoints: [], // Points collected during marking
-            zones: null
+            zones: null,
+            detectedObjects: [], // Objects detected by Gemini API
+            boilerDimensions: null,
+            boilerClearances: null
         };
 
         // Initialize
@@ -747,10 +799,32 @@
             const pxPerMMHeight = avgHeightPx / CARD_HEIGHT_MM;
             
             state.pxPerMM = (pxPerMMWidth + pxPerMMHeight) / 2;
-            
+
             const skew = Math.abs(pxPerMMWidth - pxPerMMHeight) / state.pxPerMM * 100;
+
+            // Calculate plumb line accuracy (check if card is level/vertical)
+            const topAngle = Math.abs(Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x) * 180 / Math.PI);
+            const bottomAngle = Math.abs(Math.atan2(points[2].y - points[3].y, points[2].x - points[3].x) * 180 / Math.PI);
+            const leftAngle = Math.abs(Math.atan2(points[3].y - points[0].y, points[3].x - points[0].x) * 180 / Math.PI - 90);
+            const rightAngle = Math.abs(Math.atan2(points[2].y - points[1].y, points[2].x - points[1].x) * 180 / Math.PI - 90);
+
+            const avgHorizontalAngle = (topAngle + bottomAngle) / 2;
+            const avgVerticalAngle = (leftAngle + rightAngle) / 2;
+
+            let plumbRating = '';
+            let plumbAccurate = true;
+
+            if (avgHorizontalAngle < 3 && avgVerticalAngle < 3) {
+                plumbRating = '✅ Excellent - Card is level and plumb';
+            } else if (avgHorizontalAngle < 5 && avgVerticalAngle < 5) {
+                plumbRating = '⚠️ Good - Slight tilt detected';
+            } else {
+                plumbRating = '❌ Card not level - Use plumb line for accuracy';
+                plumbAccurate = false;
+            }
+
             let accuracyRating = '';
-            
+
             if (skew < 5) {
                 accuracyRating = '✅ Excellent (< 5% skew)';
             } else if (skew < 10) {
@@ -794,6 +868,7 @@
             document.getElementById('cardWidthDisplay').textContent = avgWidthPx.toFixed(1);
             document.getElementById('cardHeightDisplay').textContent = avgHeightPx.toFixed(1);
             document.getElementById('accuracyDisplay').textContent = accuracyRating;
+            document.getElementById('plumbDisplay').textContent = plumbRating;
 
             document.getElementById('analysisCard').style.display = 'block';
 
@@ -855,22 +930,59 @@
 
             state.mode = 'boiler';
             state.position = null; // Clear any previous position
+
+            // Initialize default boiler dimensions
+            state.boilerDimensions = {
+                height: 600,  // mm
+                width: 390,   // mm
+                depth: 280    // mm (not used in 2D view)
+            };
+
+            // Initialize default clearances
+            state.boilerClearances = {
+                top: 170,     // mm
+                bottom: 200,  // mm
+                left: 5,      // mm
+                right: 5      // mm
+            };
+
             document.getElementById('positionInstructions').style.display = 'block';
-            document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler will be located';
-            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler center will be located';
 
             // Remove ALL existing listeners first (cleanup)
             state.canvas.removeEventListener('click', handlePositionClick);
             state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
 
-            // Add fresh listener
-            state.canvas.addEventListener('click', handlePositionClick);
+            // Add boiler-specific listener
+            state.canvas.addEventListener('click', handleBoilerPositionClick);
 
             // Make sure canvas is clickable
             state.canvas.style.cursor = 'crosshair';
             state.canvas.style.pointerEvents = 'auto';
 
             console.log('Boiler mode started - canvas ready for position click');
+        }
+
+        function handleBoilerPositionClick(e) {
+            if (state.isCalibrating) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+
+            // Draw boiler box and clearances
+            drawBoilerWithClearances();
+
+            document.getElementById('positionStatus').textContent = '✅ Boiler position set! You can edit dimensions below.';
+
+            // Remove click listener
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
+
+            // Show boiler editing controls
+            document.getElementById('boilerEditingSection').style.display = 'block';
         }
 
         function handlePositionClick(e) {
@@ -912,14 +1024,87 @@
 
             console.log('Marker drawn'); // Debug
 
-            const modeText = state.mode === 'flue' ? 'flue terminal' : 'boiler';
-            document.getElementById('positionStatus').textContent = `✅ ${modeText} position marked! Now mark obstacles below.`;
+            document.getElementById('positionStatus').textContent = '✅ Flue terminal position marked! Detecting objects...';
 
             // Remove position click listener
             state.canvas.removeEventListener('click', handlePositionClick);
 
-            // Show obstacle marking section
-            document.getElementById('obstacleMarkingSection').style.display = 'block';
+            // Call Gemini API to detect objects
+            detectObjectsWithGemini();
+        }
+
+        function updateBoilerDisplay() {
+            // Read values from inputs
+            state.boilerDimensions.height = parseInt(document.getElementById('boilerHeight').value) || 600;
+            state.boilerDimensions.width = parseInt(document.getElementById('boilerWidth').value) || 390;
+            state.boilerClearances.top = parseInt(document.getElementById('clearanceTop').value) || 170;
+            state.boilerClearances.bottom = parseInt(document.getElementById('clearanceBottom').value) || 200;
+            state.boilerClearances.left = parseInt(document.getElementById('clearanceLeft').value) || 5;
+            state.boilerClearances.right = parseInt(document.getElementById('clearanceRight').value) || 5;
+
+            // Redraw
+            drawBoilerWithClearances();
+        }
+
+        function drawBoilerWithClearances() {
+            // Clear and redraw
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            const boilerWidthPx = state.boilerDimensions.width * state.pxPerMM;
+            const boilerHeightPx = state.boilerDimensions.height * state.pxPerMM;
+
+            const clearanceTopPx = state.boilerClearances.top * state.pxPerMM;
+            const clearanceBottomPx = state.boilerClearances.bottom * state.pxPerMM;
+            const clearanceLeftPx = state.boilerClearances.left * state.pxPerMM;
+            const clearanceRightPx = state.boilerClearances.right * state.pxPerMM;
+
+            // Calculate boiler box position (centered on click)
+            const boilerX = state.position.x - boilerWidthPx / 2;
+            const boilerY = state.position.y - boilerHeightPx / 2;
+
+            // Draw clearance zone (red transparent)
+            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+            state.ctx.fillRect(
+                boilerX - clearanceLeftPx,
+                boilerY - clearanceTopPx,
+                boilerWidthPx + clearanceLeftPx + clearanceRightPx,
+                boilerHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+
+            // Draw clearance outline (red dashed)
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 3;
+            state.ctx.setLineDash([10, 5]);
+            state.ctx.strokeRect(
+                boilerX - clearanceLeftPx,
+                boilerY - clearanceTopPx,
+                boilerWidthPx + clearanceLeftPx + clearanceRightPx,
+                boilerHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+            state.ctx.setLineDash([]);
+
+            // Draw boiler box (green solid)
+            state.ctx.fillStyle = 'rgba(72, 187, 120, 0.3)';
+            state.ctx.fillRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+            state.ctx.strokeStyle = '#48bb78';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Draw labels
+            state.ctx.fillStyle = '#333';
+            state.ctx.font = 'bold 16px Arial';
+            state.ctx.fillText(`Boiler ${state.boilerDimensions.width}×${state.boilerDimensions.height}mm`, boilerX + 10, boilerY + 25);
+            state.ctx.fillText(`Clearances: ${state.boilerClearances.top}mm ↑`, boilerX + 10, boilerY - clearanceTopPx + 20);
+            state.ctx.fillText(`${state.boilerClearances.bottom}mm ↓`, boilerX + 10, boilerY + boilerHeightPx + clearanceBottomPx - 10);
         }
 
         function drawPositionMarker(x, y) {
@@ -1400,6 +1585,118 @@
 
         function distance(p1, p2) {
             return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        }
+
+        async function detectObjectsWithGemini() {
+            const status = document.getElementById('positionStatus');
+            status.textContent = '🔍 Detecting objects with AI...';
+
+            try {
+                // Call the Cloudflare Worker (which calls Gemini)
+                const response = await fetch('https://clearancegenie.martinbibb.workers.dev', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: state.photoBase64,
+                        pxPerMM: state.pxPerMM,
+                        mode: 'flue',
+                        position: state.position,
+                        imageWidth: state.canvas.width,
+                        imageHeight: state.canvas.height
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (!result.success || !result.detections) {
+                    throw new Error('Invalid API response');
+                }
+
+                state.detectedObjects = result.detections;
+                state.zones = result.zones;
+
+                // Draw detected objects
+                drawDetectedObjects();
+
+                // Show object key
+                showObjectKey();
+
+                status.textContent = `✅ Detected ${result.detections.length} objects!`;
+
+                // Show results panel
+                document.getElementById('resultsPanel').classList.add('active');
+
+            } catch (error) {
+                console.error('Detection error:', error);
+                status.textContent = '❌ Object detection failed. Please try manual marking.';
+                status.classList.add('warning');
+
+                // Fall back to manual marking
+                document.getElementById('obstacleMarkingSection').style.display = 'block';
+            }
+        }
+
+        function drawDetectedObjects() {
+            // Clear and redraw
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            // Draw position marker
+            drawPositionMarker(state.position.x, state.position.y);
+
+            // Draw detected objects with different colors
+            const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800', '#0088ff'];
+
+            state.detectedObjects.forEach((obj, index) => {
+                const color = colors[index % colors.length];
+
+                // Draw bounding box
+                state.ctx.strokeStyle = color;
+                state.ctx.lineWidth = 4;
+                state.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+
+                // Draw label
+                state.ctx.fillStyle = color;
+                state.ctx.font = 'bold 20px Arial';
+                const label = obj.label || obj.type;
+                state.ctx.fillText(`${index + 1}: ${label}`, obj.x + 5, obj.y + 25);
+            });
+
+            // Draw clearance zones if available
+            if (state.zones) {
+                drawClearanceZones();
+            }
+        }
+
+        function showObjectKey() {
+            const keyDiv = document.getElementById('objectKey');
+            const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800', '#0088ff'];
+
+            let keyHTML = '<h4 style="color: #667eea; margin-bottom: 15px;">Detected Objects Key:</h4>';
+
+            state.detectedObjects.forEach((obj, index) => {
+                const color = colors[index % colors.length];
+                const label = obj.label || obj.type;
+
+                keyHTML += `
+                    <div class="detection-item" style="border-left-color: ${color};">
+                        <strong style="color: ${color};">${index + 1}. ${label}</strong><br>
+                        Type: ${obj.type}<br>
+                        Position: (${Math.round(obj.x)}, ${Math.round(obj.y)})<br>
+                        Size: ${Math.round(obj.width)}×${Math.round(obj.height)}px
+                    </div>
+                `;
+            });
+
+            keyDiv.innerHTML = keyHTML;
+            keyDiv.style.display = 'block';
         }
     </script>
 
