@@ -2808,7 +2808,8 @@
                         width: finalWidth,
                         height: finalHeight,
                         reason: `${clearanceMM}mm clearance from ${obs.type}`,
-                        objectType: obs.type
+                        objectType: obs.type,
+                        clearancePx: clearancePx  // Store clearance in pixels for corner radius
                     });
                 }
             });
@@ -2843,6 +2844,12 @@
         function getClearanceForObjectFlue(obstacle, flueClearances) {
             const objectType = obstacle.type;
 
+            // Non-opening (fixed) windows are a change in fabric, not an opening
+            // Therefore they require less clearance (150mm instead of 300mm)
+            if (objectType === 'window' && obstacle.windowType === 'fixed') {
+                return 150;
+            }
+
             // Map obstacle type to CSV position/scenario
             let mapping;
 
@@ -2861,9 +2868,7 @@
             } else {
                 // Horizontal flue obstacle mappings
                 mapping = {
-                    window: obstacle.windowType === 'fixed' ?
-                        ['Window (fixed non-vented)', 'Fixed unvented window', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
-                        ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                    window: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     corner: ['Internal/external corner', 'Corner', 'Outside corner'],
@@ -3041,8 +3046,9 @@
                     drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
                     applyProhibitedStyles();
                 } else {
-                    // Use rounded rectangles for clearance zones (15px corner radius)
-                    const cornerRadius = 15;
+                    // Use rounded rectangles for clearance zones with corner radius equal to clearance distance
+                    // This maintains the exact clearance distance at corners (not the intersection distance)
+                    const cornerRadius = zone.clearancePx || 15;
                     drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
                 }
             });
@@ -3056,7 +3062,7 @@
             state.ctx.setLineDash([5, 5]);
 
             state.zones.restricted.forEach(zone => {
-                const cornerRadius = 15;
+                const cornerRadius = zone.clearancePx || 15;
                 drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
             });
             
