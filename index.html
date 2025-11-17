@@ -428,7 +428,10 @@
 
             <div class="button-group">
                 <button class="btn btn-secondary" onclick="startFlueMode()">
-                    🔥 Flue Clearances
+                    🔥 Horizontal Flue Clearances
+                </button>
+                <button class="btn btn-secondary" onclick="startVerticalFlueMode()">
+                    ⬆️ Vertical Flue Clearances
                 </button>
                 <button class="btn btn-secondary" onclick="startBoilerMode()">
                     🔧 Boiler Clearances
@@ -605,6 +608,39 @@
                 </div>
             </div>
 
+            <div id="verticalFlueEditingSection" style="display: none;">
+                <div id="verticalFlueSpecialRulesSection" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Special Vertical Flue Rules</h4>
+                    <div id="verticalFlueSpecialRulesContent" style="color: #856404;"></div>
+                </div>
+
+                <div class="instructions">
+                    <h3>Select Boiler Brand & Model</h3>
+                    <p>Choose the boiler brand and model for accurate vertical flue clearance requirements:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <label style="display: block; margin-bottom: 15px;">
+                        <strong>Brand:</strong>
+                        <select id="verticalFlueBrandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="updateVerticalFlueModelSelector()">
+                            <option value="">Select a brand...</option>
+                        </select>
+                    </label>
+
+                    <label id="verticalFlueModelSelectorLabel" style="display: none; margin-bottom: 15px;">
+                        <strong>Model/Range:</strong>
+                        <select id="verticalFlueModelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="displayVerticalFlueClearances()">
+                            <option value="">Select a model...</option>
+                        </select>
+                    </label>
+
+                    <div id="verticalFlueClearancesDisplay" style="display: none; margin-top: 20px;">
+                        <h4 style="color: #667eea; margin-bottom: 15px;">📏 Vertical Flue Clearance Requirements</h4>
+                        <div id="verticalFlueClearancesList" style="background: white; padding: 15px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="obstacleMarkingSection" style="display: none;">
                 <div class="instructions">
                     <h3>Step 4: Mark Obstacles</h3>
@@ -615,28 +651,8 @@
                     Select an obstacle type below to start marking
                 </div>
 
-                <div class="button-group">
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('window-openable')">
-                        🪟 Add Openable Window
-                    </button>
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('window-fixed')">
-                        🪟 Add Fixed Window
-                    </button>
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('vent')">
-                        🌀 Add Vent
-                    </button>
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('corner')">
-                        📐 Add Corner
-                    </button>
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('soffit')">
-                        🏠 Add Soffit/Eaves
-                    </button>
-                    <button class="btn btn-secondary" onclick="startMarkingObstacle('downpipe')">
-                        💧 Add Downpipe
-                    </button>
-                    <button class="btn btn-danger" onclick="cancelMarking()">
-                        ❌ Cancel Marking
-                    </button>
+                <div class="button-group" id="obstacleButtonsContainer">
+                    <!-- Buttons will be populated dynamically based on flue type -->
                 </div>
 
                 <div id="obstaclesList" style="display: none;">
@@ -855,6 +871,11 @@
         let FLUE_AVAILABLE_BRANDS = [];
         let FLUE_AVAILABLE_MODELS = {};
 
+        // Vertical Flue clearance data loaded from CSV
+        let VERTICAL_FLUE_CLEARANCES_DATA = [];
+        let VERTICAL_FLUE_AVAILABLE_BRANDS = [];
+        let VERTICAL_FLUE_AVAILABLE_MODELS = {};
+
         // Core state
         const state = {
             photo: null,
@@ -867,6 +888,7 @@
             position: null,
             canvasScale: 1,
             mode: null,
+            flueType: null, // 'horizontal' or 'vertical'
             obstacles: [], // Manual obstacles marked by user
             markingMode: null, // Current obstacle type being marked
             markingPoints: [], // Points collected during marking
@@ -1117,9 +1139,100 @@
             return clearances;
         }
 
+        // Vertical Flue Clearance CSV Functions
+        async function loadVerticalFlueClearances() {
+            try {
+                const response = await fetch('data/vertical-flue-clearances.csv');
+                const csvText = await response.text();
+                parseVerticalFlueClearancesCSV(csvText);
+            } catch (error) {
+                console.error('Failed to load vertical flue clearances CSV:', error);
+            }
+        }
+
+        function parseVerticalFlueClearancesCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            VERTICAL_FLUE_CLEARANCES_DATA = [];
+            const brandsSet = new Set();
+            const modelsMap = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const fields = parseCSVLine(line);
+                if (fields.length < 5) continue;
+
+                const entry = {
+                    type: fields[0],
+                    brand: fields[1],
+                    model: fields[2],
+                    position: fields[3],
+                    clearanceMM: parseInt(fields[4]) || 0,
+                    specialRules: fields[5] || ''
+                };
+
+                VERTICAL_FLUE_CLEARANCES_DATA.push(entry);
+
+                // Track unique brands
+                if (entry.brand && entry.brand !== 'Any') {
+                    brandsSet.add(entry.brand);
+
+                    // Track models per brand
+                    if (!modelsMap[entry.brand]) {
+                        modelsMap[entry.brand] = new Set();
+                    }
+                    if (entry.model) {
+                        modelsMap[entry.brand].add(entry.model);
+                    }
+                }
+            }
+
+            VERTICAL_FLUE_AVAILABLE_BRANDS = Array.from(brandsSet).sort();
+            VERTICAL_FLUE_AVAILABLE_MODELS = {};
+            for (const brand in modelsMap) {
+                VERTICAL_FLUE_AVAILABLE_MODELS[brand] = Array.from(modelsMap[brand]).sort();
+            }
+
+            console.log('Loaded vertical flue clearances:', {
+                entries: VERTICAL_FLUE_CLEARANCES_DATA.length,
+                brands: VERTICAL_FLUE_AVAILABLE_BRANDS,
+                models: VERTICAL_FLUE_AVAILABLE_MODELS
+            });
+        }
+
+        function getVerticalFlueClearancesForModel(brand, model) {
+            const normalizedBrand = brand.toLowerCase();
+            const normalizedModel = model.toLowerCase();
+
+            const entries = VERTICAL_FLUE_CLEARANCES_DATA.filter(entry => {
+                const entryBrand = entry.brand.toLowerCase();
+                const entryModel = entry.model.toLowerCase();
+
+                return (entry.brand === 'Any' || entryBrand === normalizedBrand) &&
+                       (entryModel === normalizedModel || entryModel.includes(normalizedModel));
+            });
+
+            // Group by position/scenario
+            const clearances = {};
+            entries.forEach(entry => {
+                if (!clearances[entry.position]) {
+                    clearances[entry.position] = {
+                        clearanceMM: entry.clearanceMM,
+                        specialRules: entry.specialRules
+                    };
+                }
+            });
+
+            return clearances;
+        }
+
         // Initialize - Load CSV data on page load
         loadBoilerClearances();
         loadFlueClearances();
+        loadVerticalFlueClearances();
 
         document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
@@ -1392,6 +1505,7 @@
             }
 
             state.mode = 'flue';
+            state.flueType = 'horizontal';
             state.position = null;
             state.flueBrand = null;
             state.flueModel = null;
@@ -1400,6 +1514,7 @@
             // Hide other mode sections
             document.getElementById('boilerEditingSection').style.display = 'none';
             document.getElementById('radiatorEditingSection').style.display = 'none';
+            document.getElementById('verticalFlueEditingSection').style.display = 'none';
 
             // Show flue editing section
             document.getElementById('flueEditingSection').style.display = 'block';
@@ -1415,7 +1530,7 @@
             });
 
             document.getElementById('positionInstructions').style.display = 'block';
-            document.getElementById('positionStatus').textContent = '🔥 Select brand/model, then tap to mark flue terminal position';
+            document.getElementById('positionStatus').textContent = '🔥 Select brand/model, then tap to mark horizontal flue terminal position';
 
             // Remove ALL existing listeners first (cleanup)
             state.canvas.removeEventListener('click', handlePositionClick);
@@ -1430,7 +1545,60 @@
             state.canvas.style.cursor = 'crosshair';
             state.canvas.style.pointerEvents = 'auto';
 
-            console.log('Flue mode started');
+            console.log('Horizontal flue mode started');
+        }
+
+        function startVerticalFlueMode() {
+            console.log('=== START VERTICAL FLUE MODE CALLED ===');
+
+            // Check if canvas exists
+            if (!state.canvas) {
+                console.error('Canvas not available');
+                return;
+            }
+
+            state.mode = 'flue';
+            state.flueType = 'vertical';
+            state.position = null;
+            state.flueBrand = null;
+            state.flueModel = null;
+            state.flueClearances = null;
+
+            // Hide other mode sections
+            document.getElementById('boilerEditingSection').style.display = 'none';
+            document.getElementById('radiatorEditingSection').style.display = 'none';
+            document.getElementById('flueEditingSection').style.display = 'none';
+
+            // Show vertical flue editing section
+            document.getElementById('verticalFlueEditingSection').style.display = 'block';
+
+            // Populate brand selector
+            const brandSelect = document.getElementById('verticalFlueBrandSelect');
+            brandSelect.innerHTML = '<option value="">Select a brand...</option>';
+            VERTICAL_FLUE_AVAILABLE_BRANDS.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandSelect.appendChild(option);
+            });
+
+            document.getElementById('positionInstructions').style.display = 'block';
+            document.getElementById('positionStatus').textContent = '⬆️ Select brand/model, then tap to mark vertical flue terminal position';
+
+            // Remove ALL existing listeners first (cleanup)
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
+            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
+
+            // Add fresh listener
+            state.canvas.addEventListener('click', handlePositionClick);
+
+            // Make sure canvas is clickable
+            state.canvas.style.cursor = 'crosshair';
+            state.canvas.style.pointerEvents = 'auto';
+
+            console.log('Vertical flue mode started');
         }
 
         function updateFlueModelSelector() {
@@ -1511,6 +1679,86 @@
 
             // Update status
             document.getElementById('positionStatus').textContent = '🔥 Tap on the image to mark the flue terminal position';
+        }
+
+        function updateVerticalFlueModelSelector() {
+            const brand = document.getElementById('verticalFlueBrandSelect').value;
+            const modelSelect = document.getElementById('verticalFlueModelSelect');
+            const modelLabel = document.getElementById('verticalFlueModelSelectorLabel');
+
+            if (!brand) {
+                modelLabel.style.display = 'none';
+                return;
+            }
+
+            // Get models for this brand
+            if (VERTICAL_FLUE_AVAILABLE_MODELS[brand]) {
+                const models = VERTICAL_FLUE_AVAILABLE_MODELS[brand];
+
+                // Populate model dropdown
+                modelSelect.innerHTML = '<option value="">Select a model...</option>';
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    modelSelect.appendChild(option);
+                });
+
+                modelLabel.style.display = 'block';
+            } else {
+                modelLabel.style.display = 'none';
+            }
+        }
+
+        function displayVerticalFlueClearances() {
+            const brand = document.getElementById('verticalFlueBrandSelect').value;
+            const model = document.getElementById('verticalFlueModelSelect').value;
+
+            if (!brand || !model) return;
+
+            state.flueBrand = brand;
+            state.flueModel = model;
+
+            // Get clearances for this model
+            const clearances = getVerticalFlueClearancesForModel(brand, model);
+            state.flueClearances = clearances;
+
+            // Display clearances
+            const displayDiv = document.getElementById('verticalFlueClearancesDisplay');
+            const listDiv = document.getElementById('verticalFlueClearancesList');
+            const rulesSection = document.getElementById('verticalFlueSpecialRulesSection');
+            const rulesContent = document.getElementById('verticalFlueSpecialRulesContent');
+
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="border-bottom: 2px solid #667eea;"><th style="padding: 8px; text-align: left;">Position/Scenario</th><th style="padding: 8px; text-align: right;">Clearance</th></tr>';
+
+            let specialRules = [];
+
+            for (const [position, data] of Object.entries(clearances)) {
+                html += `<tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px;">${position}</td>
+                    <td style="padding: 8px; text-align: right; font-weight: bold;">${data.clearanceMM}mm</td>
+                </tr>`;
+
+                if (data.specialRules) {
+                    specialRules.push(`<strong>${position}:</strong> ${data.specialRules}`);
+                }
+            }
+
+            html += '</table>';
+            listDiv.innerHTML = html;
+            displayDiv.style.display = 'block';
+
+            // Show special rules if any
+            if (specialRules.length > 0) {
+                rulesContent.innerHTML = '• ' + specialRules.join('<br>• ');
+                rulesSection.style.display = 'block';
+            } else {
+                rulesSection.style.display = 'none';
+            }
+
+            // Update status
+            document.getElementById('positionStatus').textContent = '⬆️ Tap on the image to mark the vertical flue terminal position';
         }
 
         function updateModelSelector() {
@@ -1732,6 +1980,53 @@
             document.getElementById('obstacleMarkingSection').style.display = 'block';
         }
 
+        function populateObstacleButtons() {
+            const container = document.getElementById('obstacleButtonsContainer');
+            container.innerHTML = '';
+
+            let buttons = [];
+
+            if (state.mode === 'flue' && state.flueType === 'vertical') {
+                // Vertical flue obstacles
+                buttons = [
+                    { type: 'boundary', icon: '🔲', label: 'Add Boundary' },
+                    { type: 'window-vent-vertical', icon: '🪟', label: 'Add Window/Vent (Vertical)' },
+                    { type: 'pitched-roof', icon: '🏠', label: 'Add Pitched Roof' },
+                    { type: 'velux-below', icon: '🔻', label: 'Add Velux (Below)' },
+                    { type: 'velux-above-sides', icon: '🔺', label: 'Add Velux (Above/Sides)' },
+                    { type: 'skylight', icon: '☀️', label: 'Add Skylight' },
+                    { type: 'combustible-material', icon: '🔥', label: 'Add Combustible Material' },
+                    { type: 'vertical-terminal', icon: '⬆️', label: 'Add Other Vertical Terminal' }
+                ];
+            } else {
+                // Horizontal flue obstacles (default)
+                buttons = [
+                    { type: 'window-openable', icon: '🪟', label: 'Add Openable Window' },
+                    { type: 'window-fixed', icon: '🪟', label: 'Add Fixed Window' },
+                    { type: 'vent', icon: '🌀', label: 'Add Vent' },
+                    { type: 'corner', icon: '📐', label: 'Add Corner' },
+                    { type: 'soffit', icon: '🏠', label: 'Add Soffit/Eaves' },
+                    { type: 'downpipe', icon: '💧', label: 'Add Downpipe' }
+                ];
+            }
+
+            // Add buttons to container
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = 'btn btn-secondary';
+                button.onclick = () => startMarkingObstacle(btn.type);
+                button.textContent = `${btn.icon} ${btn.label}`;
+                container.appendChild(button);
+            });
+
+            // Add cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-danger';
+            cancelBtn.onclick = cancelMarking;
+            cancelBtn.textContent = '❌ Cancel Marking';
+            container.appendChild(cancelBtn);
+        }
+
         function handlePositionClick(e) {
             if (state.isCalibrating) return;
 
@@ -1776,7 +2071,8 @@
             // Remove position click listener
             state.canvas.removeEventListener('click', handlePositionClick);
 
-            // Show manual obstacle marking UI immediately
+            // Show manual obstacle marking UI immediately and populate buttons
+            populateObstacleButtons();
             document.getElementById('obstacleMarkingSection').style.display = 'block';
         }
 
@@ -1978,16 +2274,23 @@
             let needsPoints;
             let firstMessage;
 
-            if (type === 'corner' || type === 'downpipe') {
+            // Point obstacles (single tap)
+            if (type === 'corner' || type === 'downpipe' || type === 'boundary' || type === 'vertical-terminal') {
                 needsPoints = 1;
-                firstMessage = `👆 Tap location of ${type}`;
-            } else if (type === 'window-openable' || type === 'window-fixed') {
+                const displayName = type.replace(/-/g, ' ');
+                firstMessage = `👆 Tap location of ${displayName}`;
+            }
+            // 4-point obstacles (windows)
+            else if (type === 'window-openable' || type === 'window-fixed') {
                 needsPoints = 4;
                 const windowType = type === 'window-openable' ? 'openable window' : 'fixed window';
                 firstMessage = `👆 Tap top-left corner of ${windowType}`;
-            } else {
+            }
+            // 2-point rectangular obstacles
+            else {
                 needsPoints = 2;
-                firstMessage = `👆 Tap top-left corner of ${type}`;
+                const displayName = type.replace(/-/g, ' ');
+                firstMessage = `👆 Tap top-left corner of ${displayName}`;
             }
 
             const status = document.getElementById('markingStatus');
@@ -2465,7 +2768,9 @@
                 // Calculate zone based on obstacle type
                 let zoneX, zoneY, zoneMaxX, zoneMaxY;
 
-                if (obs.type === 'corner' || obs.type === 'downpipe') {
+                // Point obstacles get circular zones
+                const pointObstacles = ['corner', 'downpipe', 'boundary', 'vertical-terminal'];
+                if (pointObstacles.includes(obs.type)) {
                     // Circular zone for point obstacles
                     const centerX = obs.x + obs.width / 2;
                     const centerY = obs.y + obs.height / 2;
@@ -2539,16 +2844,33 @@
             const objectType = obstacle.type;
 
             // Map obstacle type to CSV position/scenario
-            const mapping = {
-                window: obstacle.windowType === 'fixed' ?
-                    ['Window (fixed non-vented)', 'Fixed unvented window', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
-                    ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
-                door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
-                vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
-                corner: ['Internal/external corner', 'Corner', 'Outside corner'],
-                soffit: ['Below eaves/gutters/pipes', 'Eaves/gutters', 'Eaves/gutter'],
-                downpipe: ['Drainpipes/soil pipes', 'Below eaves/gutters/pipes']
-            };
+            let mapping;
+
+            if (state.flueType === 'vertical') {
+                // Vertical flue obstacle mappings
+                mapping = {
+                    'boundary': ['Boundary vertical', 'Boundary', 'Adjacent to boundary'],
+                    'window-vent-vertical': ['To window/door/vent vertically', 'To opening (window/vent) horizontally', 'Openings'],
+                    'pitched-roof': ['To pitched roof', 'Diagonal from pitched roof'],
+                    'velux-below': ['To Velux below'],
+                    'velux-above-sides': ['To Velux above/sides'],
+                    'skylight': ['To skylight/opening vertically', 'To skylight other vertical flue'],
+                    'combustible-material': ['To combustible material'],
+                    'vertical-terminal': ['Between vertical terminals', 'Separation vertical ↔ horizontal', 'To skylight other vertical flue']
+                };
+            } else {
+                // Horizontal flue obstacle mappings
+                mapping = {
+                    window: obstacle.windowType === 'fixed' ?
+                        ['Window (fixed non-vented)', 'Fixed unvented window', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
+                        ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                    door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                    vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                    corner: ['Internal/external corner', 'Corner', 'Outside corner'],
+                    soffit: ['Below eaves/gutters/pipes', 'Eaves/gutters', 'Eaves/gutter'],
+                    downpipe: ['Drainpipes/soil pipes', 'Below eaves/gutters/pipes']
+                };
+            }
 
             const positions = mapping[objectType];
             if (!positions) return null;
@@ -2560,7 +2882,7 @@
                 }
             }
 
-            // Check if "Outside corner" rule exists (260mm)
+            // Check if "Outside corner" rule exists (260mm) for horizontal flues
             if (objectType === 'corner' && flueClearances['Outside corner']) {
                 return flueClearances['Outside corner'].clearanceMM;
             }
@@ -2574,8 +2896,9 @@
             let hasConflict = false;
 
             // Check if position is inside any prohibited zone
+            const pointObstacles = ['corner', 'downpipe', 'boundary', 'vertical-terminal'];
             for (const zone of state.zones.prohibited) {
-                if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
+                if (pointObstacles.includes(zone.objectType)) {
                     // Check circular zone
                     const centerX = zone.x + zone.width / 2;
                     const centerY = zone.y + zone.height / 2;

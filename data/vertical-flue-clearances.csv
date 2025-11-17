@@ -1,0 +1,21 @@
+Type,Brand,Model/Range,Position/Scenario,Clearance (mm),Special Rules
+Any,Worcester,8000/4000/Ri,To opening (window/vent) horizontally,1500,
+Any,Worcester,8000/4000/Ri,To opening horizontally if 300mm above,500,
+Any,Worcester,8000/4000/Ri,Adjacent to boundary,300,"Unless causing nuisance"
+Any,Worcester,8000/4000/Ri,To skylight/opening vertically,600,"If within 1500mm must be 300mm above"
+Any,Worcester,8000/4000/Ri,To vertical structure horizontal,500,"Not needed if terminal 300mm above structure"
+Any,Worcester,8000/4000/Ri,Diagonal from pitched roof,400,"500mm in snow regions"
+Any,Worcester,8000/4000/Ri,Separation vertical ↔ horizontal,1200,
+Any,Worcester,8000/4000/Ri,Prohibited zone,,"Terminal must not penetrate shaded area (manual figs)"
+Any,Vaillant,ecoFIT/ecoTEC,Boundary vertical,300,
+Any,Vaillant,ecoFIT/ecoTEC,To window/door/vent vertically,300,
+Any,Vaillant,ecoFIT/ecoTEC,To pitched roof,400,"500mm in snow regions"
+Any,Vaillant,ecoFIT/ecoTEC,To Velux below,2000,
+Any,Vaillant,ecoFIT/ecoTEC,To Velux above/sides,600,
+Any,Vaillant,ecoFIT/ecoTEC,To skylight other vertical flue,300,
+Any,Vaillant,ecoFIT/ecoTEC,To combustible material,1500,
+Any,Vaillant,ecoFIT/ecoTEC,Between vertical terminals,1200,
+Regular,Glow-worm,Energy7,To openings,300,
+Regular,Glow-worm,Energy7,Boundary,300,
+Combi/System,Viessmann,Vitodens 050-W,Boundary,300,
+Combi/System,Viessmann,Vitodens 050-W,Openings,300,
