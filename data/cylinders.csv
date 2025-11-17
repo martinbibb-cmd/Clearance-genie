@@ -1,0 +1,85 @@
+Brand,Type,Model/Description,Volume,Dimensions,Price,Code
+Gledhill,Unvented,Envirofoam Stainless Steel,162 L,1200h x 520dia,238.56,CCYL1089
+Gledhill,Combination Copper,Combination,140 L,1075h x 520dia,380.68,CCYL1090
+Gledhill,Combination Copper,Combination,162 L,1200h x 520dia,380.68,CCYL1091
+Gledhill,Combination Copper,Combination,210 L,1850h x 520dia,578.04,CCYL1092
+Gledhill,Unvented,StainlessLite Plus,180 L,1306h x 550dia,873.28,CCYL1093
+Gledhill,Unvented,StainlessLite Plus,210 L,1494h x 550dia,859.21,CCYL1094
+Gledhill,Unvented,StainlessLite Plus,250 L,1744h x 550dia,982.56,CCYL1095
+Gledhill,Unvented,StainlessLite Plus,300 L,1990h x 550dia,982.56,CCYL1096
+Gledhill,Unvented,StainlessLite Plus,90 L,764h x 550dia,763.79,CCYL1097
+Gledhill,Unvented,StainlessLite Plus,120 L,931h x 550dia,763.79,CCYL1098
+Gledhill,Unvented,StainlessLite Plus,150 L,1118h x 550dia,763.79,CCYL1099
+Gledhill,Unvented Slimline,StainlessLite Plus Slimline,90 L,976h x 475dia,763.79,CCYL1108
+Gledhill,Unvented Slimline,StainlessLite Plus Slimline,120 L,1284h x 475dia,763.79,CCYL1109
+Gledhill,Unvented Slimline,StainlessLite Plus Slimline,150 L,1520h x 475dia,763.79,CCYL1110
+Gledhill,Unvented Slimline,StainlessLite Plus Slimline,180 L,1790h x 475dia,873.28,CCYL1111
+Gledhill,Unvented Slimline,StainlessLite Plus Slimline,210 L,1963h x 475dia,873.28,CCYL1112
+Gledhill,Twin Coil Unvented,StainlessLite Plus Twin Coil,180 L,,873.28,CCYL1100
+Gledhill,Twin Coil Unvented,StainlessLite Plus Twin Coil,210 L,,873.28,CCYL1101
+Gledhill,Twin Coil Unvented,StainlessLite Plus Twin Coil,250 L,,982.56,CCYL1102
+Gledhill,Twin Coil Unvented,StainlessLite Plus Twin Coil,300 L,,982.56,CCYL1103
+Gledhill,Twin Coil Vented,StainlessLite Plus Twin Coil,180 L,,578.04,CCYL1104
+Gledhill,Twin Coil Vented,StainlessLite Plus Twin Coil,210 L,,610.46,CCYL1105
+Gledhill,Twin Coil Vented,StainlessLite Plus Twin Coil,250 L,,610.46,CCYL1106
+Gledhill,Twin Coil Vented,StainlessLite Plus Twin Coil,300 L,,643.28,CCYL1107
+Telford,Buffer,Stainless Buffer Store with Immersion Heater,50 L,,320.00,CCYL0001
+Gledhill,Heat Pump,SL Plus Slim Heat Pump,180 L,,830.00,CCYL0002
+Gledhill,Heat Pump,SL Plus Slim Heat Pump,210 L,,900.00,CCYL0003
+Gledhill,Heat Pump,SL Plus Heat Pump,180 L,,780.00,CCYL0004
+Gledhill,Heat Pump,SL Plus Heat Pump,210 L,,810.00,CCYL0005
+Gledhill,Heat Pump,SL Plus Heat Pump,250 L,,850.00,CCYL0006
+Gledhill,Heat Pump,SL Plus Heat Pump,300 L,,910.00,CCYL0007
+Vaillant,Standard Unvented,uniSTOR,150 L,,660.00,CCYL1311
+Vaillant,Standard Unvented,uniSTOR,200 L,,690.00,CCYL1312
+Vaillant,Standard Unvented,uniSTOR,250 L,,850.00,CCYL1313
+Vaillant,Standard Unvented,uniSTOR,300 L,,910.00,CCYL1314
+Vaillant,Buffer,aroTHERM Buffer,45 L,,360.00,CCYL1310
+Mixergy,Unvented,Mixergy Slimline,210 L,1992h x 470dia,1681.00,CCYL1326
+Mixergy,Unvented,Mixergy,120 L,986h x 582dia,1427.26,CCYL0008
+Mixergy,Unvented,Mixergy,150 L,1166h x 582dia,1447.64,CCYL0009
+Mixergy,Unvented,Mixergy,180 L,1346h x 582dia,1498.62,CCYL0010
+Mixergy,Unvented,Mixergy,210 L,1526h x 582dia,1529.21,CCYL0011
+Mixergy,Open Vented,Mixergy,120 L,986h x 582dia,1427.26,CCYL0012
+Mixergy,Open Vented,Mixergy,150 L,1166h x 582dia,1420.00,CCYL0013
+Mixergy,Open Vented,Mixergy,180 L,1346h x 582dia,1498.62,CCYL0014
+Mixergy,Open Vented,Mixergy,210 L,1526h x 582dia,1529.21,CCYL0015
+Mixergy,Slimline Unvented,Mixergy Slimline,120 L,1250h x 485dia,1437.46,CCYL0016
+Mixergy,Slimline Unvented,Mixergy Slimline,150 L,1440h x 485dia,1457.84,CCYL0017
+Mixergy,Slimline Unvented,Mixergy Slimline,180 L,1690h x 485dia,1508.82,CCYL0018
+Mixergy,Slimline Unvented,Mixergy Slimline,210 L,2000h x 485dia,1549.60,CCYL0019
+Mixergy,Slimline Open Vented,Mixergy Slimline,120 L,1250h x 485dia,1420.00,CCYL0020
+Mixergy,Slimline Open Vented,Mixergy Slimline,150 L,1440h x 485dia,1478.23,CCYL0021
+Mixergy,Slimline Open Vented,Mixergy Slimline,180 L,1690h x 485dia,1470.00,CCYL0022
+Mixergy,Slimline Open Vented,Mixergy Slimline,210 L,2000h x 485dia,1419.72,CCYL0023
+Mixergy,Slimline Open Vented,Mixergy Slimline,210 L,1992h x 470dia,1409.00,CCYL1330
+Mixergy,Slimline Open Vented,Mixergy Slimline,120 L,1241h x 470dia,1445.60,CCYL1327
+Mixergy,Slimline Open Vented,Mixergy Slimline,150 L,1429h x 470dia,1466.60,CCYL1328
+Mixergy,Slimline Open Vented,Mixergy Slimline,180 L,1676h x 470dia,1488.60,CCYL1329
+Mixergy,Slimline Unvented,Mixergy Slimline,150 L,1429h x 470dia,1639.00,CCYL1324
+Mixergy,Unvented,Mixergy,180 L,1300h x 580dia,1539.00,CCYL1317
+Mixergy,Slimline Unvented,Mixergy Slimline,180 L,1676h x 470dia,1549.00,CCYL1325
+Mixergy,Unvented,Mixergy,210 L,1500h x 580dia,1671.20,CCYL1318
+Mixergy,Unvented,Mixergy,120 L,1050h x 580dia,1499.00,CCYL1315
+Mixergy,Slimline Unvented,Mixergy Slimline,120 L,1241h x 470dia,1509.00,CCYL1323
+Mixergy,Unvented,Mixergy,150 L,1200h x 580dia,1519.00,CCYL1316
+Mixergy,Open Vented,Mixergy,180 L,1300h x 580dia,1477.60,CCYL1321
+Mixergy,Open Vented,Mixergy,210 L,1500h x 580dia,1499.80,CCYL1322
+Mixergy,Open Vented,Mixergy,120 L,1050h x 580dia,1339.00,CCYL1319
+Mixergy,Open Vented,Mixergy,150 L,1200h x 580dia,1359.00,CCYL1320
+Mixergy,Slimline Open Vented,Mixergy Slimline,150 L,1510h x 478dia,1375.67,CCYL1133
+Mixergy,Slimline Open Vented,Mixergy Slimline,210 L,2073h x 478dia,1419.72,CCYL1135
+Mixergy,Open Vented,Mixergy,210 L,1613h x 580dia,1408.30,CCYL1127
+Mixergy,Slimline Open Vented,Mixergy Slimline,180 L,1760h x 478dia,1397.09,CCYL1134
+Mixergy,Slimline Unvented,Mixergy Slimline,120 L,1332h x 478dia,1353.24,CCYL1128
+Mixergy,Slimline Open Vented,Mixergy Slimline,120 L,1332h x 478dia,1353.24,CCYL1132
+Mixergy,Open Vented,Mixergy,120 L,1053h x 580dia,1343.05,CCYL1124
+Mixergy,Slimline Unvented,Mixergy Slimline,210 L,2073h x 478dia,1419.72,CCYL1131
+Mixergy,Open Vented,Mixergy,180 L,1423h x 580dia,1386.89,CCYL1126
+Mixergy,Open Vented,Mixergy,150 L,1237h x 580dia,1364.46,CCYL1125
+Mixergy,Slimline Unvented,Mixergy Slimline,180 L,1760h x 478dia,1397.09,CCYL1130
+Mixergy,Unvented,Mixergy,180 L,1423h x 580dia,1386.89,CCYL1122
+Mixergy,Slimline Unvented,Mixergy Slimline,150 L,1510h x 478dia,1375.67,CCYL1129
+Mixergy,Unvented,Mixergy,210 L,1613h x 580dia,1408.30,CCYL1123
+Mixergy,Unvented,Mixergy,150 L,1237h x 580dia,1364.46,CCYL1121
+Mixergy,Unvented,Mixergy,120 L,1053h x 580dia,1343.05,CCYL1120

@@ -377,9 +377,21 @@
         <div class="canvas-container" id="canvasContainer">
             <canvas id="photoCanvas"></canvas>
             <div id="zoomControls" style="display: none; position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 100;">
-                <button onclick="zoomIn()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">+</button>
-                <button onclick="resetZoom()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 14px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer;">1:1</button>
-                <button onclick="zoomOut()" style="display: block; width: 40px; height: 40px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">-</button>
+                <div style="margin-bottom: 10px;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; text-align: center;">Zoom</div>
+                    <button onclick="zoomIn()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">+</button>
+                    <button onclick="resetZoom()" style="display: block; width: 40px; height: 40px; margin-bottom: 5px; font-size: 14px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer;">1:1</button>
+                    <button onclick="zoomOut()" style="display: block; width: 40px; height: 40px; font-size: 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">-</button>
+                </div>
+                <div>
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; text-align: center;">Pan</div>
+                    <button onclick="panUp()" style="display: block; width: 40px; height: 40px; margin: 0 auto 5px; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">↑</button>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <button onclick="panLeft()" style="width: 40px; height: 40px; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">←</button>
+                        <button onclick="panRight()" style="width: 40px; height: 40px; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">→</button>
+                    </div>
+                    <button onclick="panDown()" style="display: block; width: 40px; height: 40px; margin: 0 auto; font-size: 18px; background: #4299e1; color: white; border: none; border-radius: 5px; cursor: pointer;">↓</button>
+                </div>
             </div>
         </div>
 
@@ -439,6 +451,9 @@
                 <button class="btn btn-secondary" onclick="startRadiatorMode()">
                     🌡️ Radiator Clearances
                 </button>
+                <button class="btn btn-secondary" onclick="startCylinderMode()">
+                    🗜️ Cylinder Placement
+                </button>
             </div>
 
             <button class="btn" onclick="testClick()">🧪 Test Click</button>
@@ -451,11 +466,7 @@
                 <label style="display: block; margin: 15px 0;">
                     <strong>Brand:</strong>
                     <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;" onchange="updateModelSelector()">
-                        <option value="worcester">Worcester Bosch</option>
-                        <option value="vaillant">Vaillant</option>
-                        <option value="ideal">Ideal</option>
-                        <option value="glow-worm">Glow-worm</option>
-                        <option value="viessmann">Viessmann</option>
+                        <option value="">Select a brand...</option>
                     </select>
                 </label>
 
@@ -518,6 +529,10 @@
                     <button class="btn btn-secondary" onclick="updateBoilerDisplay()" style="margin-top: 15px;">
                         🔄 Update Display
                     </button>
+
+                    <button class="btn btn-secondary" id="downloadBoilerMarkupBtn" onclick="downloadCurrentCanvas('boiler-markup.png')" style="margin-top: 10px; display: none;">
+                        💾 Download Image with Boiler Markup
+                    </button>
                 </div>
             </div>
 
@@ -572,7 +587,47 @@
                     <button class="btn btn-secondary" onclick="updateRadiatorDisplay()" style="margin-top: 15px;">
                         🔄 Update Display
                     </button>
+
+                    <button class="btn btn-secondary" id="downloadRadiatorMarkupBtn" onclick="downloadCurrentCanvas('radiator-markup.png')" style="margin-top: 10px; display: none;">
+                        💾 Download Image with Radiator Markup
+                    </button>
                 </div>
+            </div>
+
+            <div id="cylinderEditingSection" style="display: none;">
+                <div class="instructions">
+                    <h3>Select Cylinder</h3>
+                    <p>Choose the cylinder brand and model:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <label style="display: block; margin-bottom: 15px;">
+                        <strong>Brand:</strong>
+                        <select id="cylinderBrandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="updateCylinderModelSelector()">
+                            <option value="">Select a brand...</option>
+                        </select>
+                    </label>
+
+                    <label id="cylinderModelSelectorLabel" style="display: none; margin-bottom: 15px;">
+                        <strong>Model:</strong>
+                        <select id="cylinderModelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="displayCylinderDetails()">
+                            <option value="">Select a model...</option>
+                        </select>
+                    </label>
+
+                    <div id="cylinderDetailsDisplay" style="display: none; margin-top: 20px; background: white; padding: 15px; border-radius: 8px;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">Cylinder Details</h4>
+                        <div id="cylinderDetailsList"></div>
+                    </div>
+                </div>
+
+                <button class="btn" id="placeCylinderBtn" onclick="enableCylinderPlacement()" style="margin-top: 10px; display: none;">
+                    📍 Place Cylinder on Image
+                </button>
+
+                <button class="btn btn-secondary" id="downloadCylinderMarkupBtn" onclick="downloadCurrentCanvas('cylinder-markup.png')" style="margin-top: 10px; display: none;">
+                    💾 Download Image with Cylinder Markup
+                </button>
             </div>
 
             <div id="flueEditingSection" style="display: none;">
@@ -726,6 +781,14 @@
                         <span>Safe Zone</span>
                     </div>
                 </div>
+
+                <div style="margin-top: 15px; padding: 10px; background: #f7fafc; border-radius: 8px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-weight: 500;">
+                        <input type="checkbox" id="plumeKitToggle" onchange="togglePlumeKitMode()" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                        <span>💨 Plume Kit Mode (50% reduced clearances)</span>
+                    </label>
+                </div>
+
                 <div id="complianceResult" style="margin-top: 20px;"></div>
             </div>
         </div>
@@ -876,6 +939,11 @@
         let VERTICAL_FLUE_AVAILABLE_BRANDS = [];
         let VERTICAL_FLUE_AVAILABLE_MODELS = {};
 
+        // Cylinder data loaded from CSV
+        let CYLINDERS_DATA = [];
+        let CYLINDER_AVAILABLE_BRANDS = [];
+        let CYLINDER_AVAILABLE_MODELS = {};
+
         // Core state
         const state = {
             photo: null,
@@ -902,7 +970,13 @@
             panY: 0,
             isPanning: false,
             lastPanX: 0,
-            lastPanY: 0
+            lastPanY: 0,
+            // Plume kit mode
+            plumeKitMode: false,
+            // Long press move state
+            isLongPressing: false,
+            longPressTimer: null,
+            isMovingObject: false
         };
 
         // CSV Parsing and Loading Functions
@@ -1229,10 +1303,100 @@
             return clearances;
         }
 
+        // Cylinder loading functions
+        async function loadCylinders() {
+            try {
+                const response = await fetch('data/cylinders.csv');
+                const csvText = await response.text();
+                parseCylindersCSV(csvText);
+            } catch (error) {
+                console.error('Failed to load cylinders CSV:', error);
+            }
+        }
+
+        function parseCylindersCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            CYLINDERS_DATA = [];
+            const brandsSet = new Set();
+            const modelsMap = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const fields = parseCSVLine(line);
+                if (fields.length < 5) continue;
+
+                const entry = {
+                    brand: fields[0],
+                    type: fields[1],
+                    model: fields[2],
+                    volume: fields[3],
+                    dimensions: fields[4],
+                    price: fields[5] || '',
+                    code: fields[6] || ''
+                };
+
+                CYLINDERS_DATA.push(entry);
+
+                // Track unique brands
+                if (entry.brand) {
+                    brandsSet.add(entry.brand);
+
+                    // Track models per brand
+                    if (!modelsMap[entry.brand]) {
+                        modelsMap[entry.brand] = new Set();
+                    }
+                    if (entry.model) {
+                        const key = `${entry.type} - ${entry.model} - ${entry.volume}`;
+                        modelsMap[entry.brand].add(key);
+                    }
+                }
+            }
+
+            CYLINDER_AVAILABLE_BRANDS = Array.from(brandsSet).sort();
+            CYLINDER_AVAILABLE_MODELS = {};
+            for (const brand in modelsMap) {
+                CYLINDER_AVAILABLE_MODELS[brand] = Array.from(modelsMap[brand]).sort();
+            }
+
+            console.log('Loaded cylinders:', {
+                entries: CYLINDERS_DATA.length,
+                brands: CYLINDER_AVAILABLE_BRANDS,
+                models: CYLINDER_AVAILABLE_MODELS
+            });
+        }
+
+        function getCylinderByKey(brand, modelKey) {
+            return CYLINDERS_DATA.find(entry => {
+                const key = `${entry.type} - ${entry.model} - ${entry.volume}`;
+                return entry.brand === brand && key === modelKey;
+            });
+        }
+
+        // Parse dimensions from format like "1200h x 520dia"
+        function parseCylinderDimensions(dimStr) {
+            if (!dimStr) return null;
+
+            const heightMatch = dimStr.match(/(\d+)h/);
+            const diameterMatch = dimStr.match(/(\d+)dia/);
+
+            if (heightMatch && diameterMatch) {
+                return {
+                    height: parseInt(heightMatch[1]),
+                    diameter: parseInt(diameterMatch[1])
+                };
+            }
+            return null;
+        }
+
         // Initialize - Load CSV data on page load
         loadBoilerClearances();
         loadFlueClearances();
         loadVerticalFlueClearances();
+        loadCylinders();
 
         document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
@@ -1276,8 +1440,9 @@
             const rect = canvas.getBoundingClientRect();
             state.canvasScale = canvas.width / rect.width;
 
-            // Setup pan controls and show zoom controls
+            // Setup pan controls, long press move, and show zoom controls
             setupPanControls();
+            setupLongPressMove();
             document.getElementById('zoomControls').style.display = 'block';
         }
 
@@ -1769,11 +1934,13 @@
             // Show model selector only in boiler mode
             if (state.mode !== 'boiler') return;
 
-            // Find brand in CSV data (case-insensitive)
-            const brandKey = AVAILABLE_BRANDS.find(b => b.toLowerCase() === brand.toLowerCase());
+            if (!brand) {
+                modelLabel.style.display = 'none';
+                return;
+            }
 
-            if (brandKey && AVAILABLE_MODELS[brandKey]) {
-                const models = AVAILABLE_MODELS[brandKey];
+            if (AVAILABLE_MODELS[brand]) {
+                const models = AVAILABLE_MODELS[brand];
 
                 // Populate model dropdown
                 modelSelect.innerHTML = '<option value="">Select a model...</option>';
@@ -1869,6 +2036,16 @@
             document.getElementById('positionInstructions').style.display = 'block';
             document.getElementById('positionStatus').textContent = '🔧 Select brand/model, then tap where the boiler center will be located';
 
+            // Populate brand selector from CSV data
+            const brandSelect = document.getElementById('brandSelect');
+            brandSelect.innerHTML = '<option value="">Select a brand...</option>';
+            AVAILABLE_BRANDS.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandSelect.appendChild(option);
+            });
+
             // Show model selector
             updateModelSelector();
 
@@ -1930,6 +2107,189 @@
             state.canvas.style.pointerEvents = 'auto';
 
             console.log('Radiator mode started - canvas ready for position click');
+        }
+
+        function startCylinderMode() {
+            console.log('startCylinderMode() called');
+
+            // Check if canvas exists
+            if (!state.canvas) {
+                console.error('Canvas not available');
+                return;
+            }
+
+            state.mode = 'cylinder';
+            state.position = null; // Clear any previous position
+
+            // Show cylinder selection UI
+            document.getElementById('cylinderEditingSection').style.display = 'block';
+            document.getElementById('boilerEditingSection').style.display = 'none';
+            document.getElementById('radiatorEditingSection').style.display = 'none';
+            document.getElementById('flueEditingSection').style.display = 'none';
+            document.getElementById('verticalFlueEditingSection').style.display = 'none';
+
+            // Populate brand selector
+            updateCylinderBrandSelector();
+
+            console.log('Cylinder mode started');
+        }
+
+        function updateCylinderBrandSelector() {
+            const brandSelect = document.getElementById('cylinderBrandSelect');
+            brandSelect.innerHTML = '<option value="">Select a brand...</option>';
+
+            CYLINDER_AVAILABLE_BRANDS.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandSelect.appendChild(option);
+            });
+        }
+
+        function updateCylinderModelSelector() {
+            const brand = document.getElementById('cylinderBrandSelect').value;
+            const modelSelect = document.getElementById('cylinderModelSelect');
+            const modelLabel = document.getElementById('cylinderModelSelectorLabel');
+
+            if (!brand) {
+                modelLabel.style.display = 'none';
+                return;
+            }
+
+            modelSelect.innerHTML = '<option value="">Select a model...</option>';
+
+            const models = CYLINDER_AVAILABLE_MODELS[brand] || [];
+            models.forEach(modelKey => {
+                const option = document.createElement('option');
+                option.value = modelKey;
+                option.textContent = modelKey;
+                modelSelect.appendChild(option);
+            });
+
+            modelLabel.style.display = 'block';
+        }
+
+        function displayCylinderDetails() {
+            const brand = document.getElementById('cylinderBrandSelect').value;
+            const modelKey = document.getElementById('cylinderModelSelect').value;
+
+            if (!brand || !modelKey) {
+                document.getElementById('cylinderDetailsDisplay').style.display = 'none';
+                document.getElementById('placeCylinderBtn').style.display = 'none';
+                return;
+            }
+
+            const cylinder = getCylinderByKey(brand, modelKey);
+            if (!cylinder) {
+                console.error('Cylinder not found:', brand, modelKey);
+                return;
+            }
+
+            // Parse dimensions
+            const dims = parseCylinderDimensions(cylinder.dimensions);
+
+            // Store in state
+            state.cylinderDimensions = dims || { height: 1200, diameter: 520 };
+            state.cylinderInfo = cylinder;
+
+            // Display details
+            const detailsList = document.getElementById('cylinderDetailsList');
+            detailsList.innerHTML = `
+                <p><strong>Type:</strong> ${cylinder.type}</p>
+                <p><strong>Model:</strong> ${cylinder.model}</p>
+                <p><strong>Volume:</strong> ${cylinder.volume}</p>
+                ${cylinder.dimensions ? `<p><strong>Dimensions:</strong> ${cylinder.dimensions}</p>` : ''}
+                ${cylinder.price ? `<p><strong>Price:</strong> £${cylinder.price}</p>` : ''}
+                ${cylinder.code ? `<p><strong>Code:</strong> ${cylinder.code}</p>` : ''}
+            `;
+
+            document.getElementById('cylinderDetailsDisplay').style.display = 'block';
+            document.getElementById('placeCylinderBtn').style.display = 'block';
+        }
+
+        function enableCylinderPlacement() {
+            // Remove ALL existing listeners first (cleanup)
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
+            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
+            state.canvas.removeEventListener('click', handleCylinderPositionClick);
+
+            // Add cylinder-specific listener
+            state.canvas.addEventListener('click', handleCylinderPositionClick);
+
+            // Make sure canvas is clickable
+            state.canvas.style.cursor = 'crosshair';
+            state.canvas.style.pointerEvents = 'auto';
+
+            // Update status
+            document.getElementById('positionInstructions').style.display = 'block';
+            document.getElementById('positionStatus').textContent = '🗜️ Tap where the cylinder center will be located';
+
+            console.log('Cylinder placement enabled - canvas ready for position click');
+        }
+
+        function handleCylinderPositionClick(e) {
+            if (state.isCalibrating) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+
+            // Draw cylinder
+            drawCylinderOnCanvas();
+
+            console.log('Cylinder placed at:', state.position);
+        }
+
+        function drawCylinderOnCanvas() {
+            if (!state.cylinderDimensions || !state.position) return;
+
+            // Redraw base
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            const diameterPx = state.cylinderDimensions.diameter * state.pxPerMM;
+            const heightPx = state.cylinderDimensions.height * state.pxPerMM;
+
+            const cylinderX = state.position.x - diameterPx / 2;
+            const cylinderY = state.position.y - heightPx / 2;
+
+            // Draw cylinder outline (rectangle with rounded ends for side view)
+            state.ctx.fillStyle = 'rgba(100, 150, 255, 0.3)';
+            state.ctx.fillRect(cylinderX, cylinderY, diameterPx, heightPx);
+
+            state.ctx.strokeStyle = '#4a90e2';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(cylinderX, cylinderY, diameterPx, heightPx);
+
+            // Draw rounded top and bottom
+            state.ctx.beginPath();
+            state.ctx.ellipse(state.position.x, cylinderY, diameterPx / 2, diameterPx / 8, 0, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            state.ctx.beginPath();
+            state.ctx.ellipse(state.position.x, cylinderY + heightPx, diameterPx / 2, diameterPx / 8, 0, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Label
+            state.ctx.fillStyle = '#4a90e2';
+            state.ctx.font = 'bold 16px Arial';
+            const label = `Cylinder ${state.cylinderDimensions.height}×${state.cylinderDimensions.diameter}mm`;
+            state.ctx.fillText(label, cylinderX + 10, cylinderY + 25);
+
+            // Show download button
+            document.getElementById('downloadCylinderMarkupBtn').style.display = 'block';
         }
 
         function handleBoilerPositionClick(e) {
@@ -2183,6 +2543,9 @@
             state.ctx.fillText(`Boiler ${state.boilerDimensions.width}×${state.boilerDimensions.height}mm`, boilerX + 10, boilerY + 25);
             state.ctx.fillText(`Clearances: ${state.boilerClearances.top}mm ↑`, boilerX + 10, boilerY - clearanceTopPx + 20);
             state.ctx.fillText(`${state.boilerClearances.bottom}mm ↓`, boilerX + 10, boilerY + boilerHeightPx + clearanceBottomPx - 10);
+
+            // Show download button
+            document.getElementById('downloadBoilerMarkupBtn').style.display = 'block';
         }
 
         function drawRadiatorWithClearances() {
@@ -2246,6 +2609,9 @@
                 state.ctx.fillText(`Clearances: ${state.radiatorClearances.top}mm ↑`, radiatorX + 10, radiatorY - clearanceTopPx + 20);
             }
             state.ctx.fillText(`${state.radiatorClearances.bottom}mm ↓`, radiatorX + 10, radiatorY + radiatorHeightPx + clearanceBottomPx - 10);
+
+            // Show download button
+            document.getElementById('downloadRadiatorMarkupBtn').style.display = 'block';
         }
 
         function drawPositionMarker(x, y) {
@@ -2503,12 +2869,180 @@
             applyZoomAndPan();
         }
 
+        function panUp() {
+            state.panY += 50;
+            applyZoomAndPan();
+        }
+
+        function panDown() {
+            state.panY -= 50;
+            applyZoomAndPan();
+        }
+
+        function panLeft() {
+            state.panX += 50;
+            applyZoomAndPan();
+        }
+
+        function panRight() {
+            state.panX -= 50;
+            applyZoomAndPan();
+        }
+
         function applyZoomAndPan() {
             // Redraw with current zoom and pan
             if (state.zones) {
                 drawClearanceZones();
             } else {
                 redrawCanvasWithObstacles();
+            }
+        }
+
+        // Long press object moving functionality
+        function setupLongPressMove() {
+            const canvas = state.canvas;
+
+            canvas.addEventListener('mousedown', handleLongPressStart);
+            canvas.addEventListener('touchstart', handleLongPressTouchStart);
+            canvas.addEventListener('mousemove', handleObjectMove);
+            canvas.addEventListener('touchmove', handleObjectMoveTouch);
+            canvas.addEventListener('mouseup', handleLongPressEnd);
+            canvas.addEventListener('touchend', handleLongPressEnd);
+        }
+
+        function handleLongPressStart(e) {
+            if (!canMoveObject()) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            // Check if click is on placed object
+            if (isClickOnObject(x, y)) {
+                // Start long press timer
+                state.longPressTimer = setTimeout(() => {
+                    state.isMovingObject = true;
+                    state.canvas.style.cursor = 'move';
+                    showMessage('Moving object - drag to new position');
+                }, 500); // 500ms for long press
+            }
+        }
+
+        function handleLongPressTouchStart(e) {
+            if (!canMoveObject() || e.touches.length !== 1) return;
+
+            e.preventDefault();
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
+            const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
+
+            if (isClickOnObject(x, y)) {
+                state.longPressTimer = setTimeout(() => {
+                    state.isMovingObject = true;
+                    showMessage('Moving object - drag to new position');
+                }, 500);
+            }
+        }
+
+        function handleObjectMove(e) {
+            if (!state.isMovingObject) {
+                // Cancel long press if mouse moves before timeout
+                if (state.longPressTimer) {
+                    clearTimeout(state.longPressTimer);
+                    state.longPressTimer = null;
+                }
+                return;
+            }
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            // Update position
+            state.position = {x, y};
+
+            // Redraw based on mode
+            redrawObjectAtNewPosition();
+        }
+
+        function handleObjectMoveTouch(e) {
+            if (!state.isMovingObject || e.touches.length !== 1) {
+                if (state.longPressTimer) {
+                    clearTimeout(state.longPressTimer);
+                    state.longPressTimer = null;
+                }
+                return;
+            }
+
+            e.preventDefault();
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.touches[0].clientX - rect.left) * state.canvasScale;
+            const y = (e.touches[0].clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+            redrawObjectAtNewPosition();
+        }
+
+        function handleLongPressEnd() {
+            if (state.longPressTimer) {
+                clearTimeout(state.longPressTimer);
+                state.longPressTimer = null;
+            }
+
+            if (state.isMovingObject) {
+                state.isMovingObject = false;
+                state.canvas.style.cursor = 'crosshair';
+                showMessage('Object moved successfully');
+            }
+        }
+
+        function canMoveObject() {
+            return state.position && (state.mode === 'boiler' || state.mode === 'radiator' || state.mode === 'cylinder');
+        }
+
+        function isClickOnObject(x, y) {
+            if (!state.position) return false;
+
+            // Check if click is within object bounds
+            let width, height;
+
+            if (state.mode === 'boiler' && state.boilerDimensions) {
+                width = state.boilerDimensions.width * state.pxPerMM;
+                height = state.boilerDimensions.height * state.pxPerMM;
+            } else if (state.mode === 'radiator' && state.radiatorDimensions) {
+                width = state.radiatorDimensions.width * state.pxPerMM;
+                height = state.radiatorDimensions.height * state.pxPerMM;
+            } else if (state.mode === 'cylinder' && state.cylinderDimensions) {
+                width = state.cylinderDimensions.diameter * state.pxPerMM;
+                height = state.cylinderDimensions.height * state.pxPerMM;
+            } else {
+                return false;
+            }
+
+            const objX = state.position.x - width / 2;
+            const objY = state.position.y - height / 2;
+
+            return x >= objX && x <= objX + width && y >= objY && y <= objY + height;
+        }
+
+        function redrawObjectAtNewPosition() {
+            if (state.mode === 'boiler') {
+                drawBoilerWithClearances();
+            } else if (state.mode === 'radiator') {
+                drawRadiatorWithClearances();
+            } else if (state.mode === 'cylinder') {
+                drawCylinderOnCanvas();
+            }
+        }
+
+        function showMessage(msg) {
+            const statusDiv = document.getElementById('positionStatus');
+            if (statusDiv) {
+                const originalText = statusDiv.textContent;
+                statusDiv.textContent = msg;
+                setTimeout(() => {
+                    statusDiv.textContent = originalText;
+                }, 2000);
             }
         }
 
@@ -2862,7 +3396,7 @@
                 // Horizontal flue obstacle mappings
                 mapping = {
                     window: obstacle.windowType === 'fixed' ?
-                        ['Window (fixed non-vented)', 'Fixed unvented window', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
+                        ['Change of fabric', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
                         ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
@@ -2890,6 +3424,15 @@
             return null;
         }
 
+        function togglePlumeKitMode() {
+            state.plumeKitMode = document.getElementById('plumeKitToggle').checked;
+            // Redraw clearance zones with updated mode
+            if (state.zones) {
+                drawClearanceZones();
+                checkCompliance();
+            }
+        }
+
         function checkCompliance() {
             if (!state.position || !state.zones) return;
 
@@ -2902,7 +3445,13 @@
                     // Check circular zone
                     const centerX = zone.x + zone.width / 2;
                     const centerY = zone.y + zone.height / 2;
-                    const radius = zone.width / 2;
+                    let radius = zone.width / 2;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        radius = radius * 0.5;
+                    }
+
                     const distance = Math.sqrt(
                         Math.pow(state.position.x - centerX, 2) +
                         Math.pow(state.position.y - centerY, 2)
@@ -2913,10 +3462,23 @@
                     }
                 } else {
                     // Check rectangular zone
-                    if (state.position.x >= zone.x &&
-                        state.position.x <= zone.x + zone.width &&
-                        state.position.y >= zone.y &&
-                        state.position.y <= zone.y + zone.height) {
+                    let zoneX = zone.x;
+                    let zoneY = zone.y;
+                    let zoneWidth = zone.width;
+                    let zoneHeight = zone.height;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        zoneWidth = zone.width * 0.5;
+                        zoneHeight = zone.height * 0.5;
+                        zoneX = zone.x + (zone.width - zoneWidth) / 2;
+                        zoneY = zone.y + (zone.height - zoneHeight) / 2;
+                    }
+
+                    if (state.position.x >= zoneX &&
+                        state.position.x <= zoneX + zoneWidth &&
+                        state.position.y >= zoneY &&
+                        state.position.y <= zoneY + zoneHeight) {
                         hasConflict = true;
                         break;
                     }
@@ -3038,12 +3600,27 @@
                         }
                     }
 
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        radiusPx = radiusPx * 0.5;
+                    }
+
                     drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
                     applyProhibitedStyles();
                 } else {
-                    // Use rounded rectangles for clearance zones (15px corner radius)
-                    const cornerRadius = 15;
-                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    // Use rounded rectangles for clearance zones (300mm corner radius)
+                    const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        const reducedWidth = zone.width * 0.5;
+                        const reducedHeight = zone.height * 0.5;
+                        const offsetX = (zone.width - reducedWidth) / 2;
+                        const offsetY = (zone.height - reducedHeight) / 2;
+                        drawRoundedRect(state.ctx, zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight, cornerRadius, true, true);
+                    } else {
+                        drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    }
                 }
             });
 
@@ -3056,8 +3633,18 @@
             state.ctx.setLineDash([5, 5]);
 
             state.zones.restricted.forEach(zone => {
-                const cornerRadius = 15;
-                drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
+
+                // Apply 50% reduction for plume kit mode
+                if (state.plumeKitMode) {
+                    const reducedWidth = zone.width * 0.5;
+                    const reducedHeight = zone.height * 0.5;
+                    const offsetX = (zone.width - reducedWidth) / 2;
+                    const offsetY = (zone.height - reducedHeight) / 2;
+                    drawRoundedRect(state.ctx, zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight, cornerRadius, true, true);
+                } else {
+                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                }
             });
             
             state.ctx.setLineDash([]);
@@ -3138,6 +3725,8 @@
             state.markingMode = null;
             state.markingPoints = [];
             state.zones = null;
+            state.plumeKitMode = false;
+            document.getElementById('plumeKitToggle').checked = false;
 
             if (state.photo) {
                 state.ctx.drawImage(state.photo, 0, 0);
@@ -3474,6 +4063,18 @@
             const link = document.createElement('a');
             link.download = filename;
             link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadCurrentCanvas(filename) {
+            if (!state.canvas) {
+                console.error('No canvas available to download');
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = state.canvas.toDataURL('image/png');
             link.click();
         }
 

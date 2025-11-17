@@ -1,7 +1,7 @@
 Type,Brand,Model/Range,Position/Scenario,Clearance (mm),Special Rules
 Any,Worcester,8000/4000/Ri,Below eaves/gutters/pipes,200,"75mm in Worcester 4000 if extending flue past overhang by 100mm"
 Any,Worcester,8000/4000/Ri,Adjacent to boundary,300,"Unless causing nuisance – BS5440 guidance"
-Any,Worcester,8000/4000/Ri,Opening (window/door/vent) below/side/above,300,"150mm for fixed unvented window (Ri); 300mm all others"
+Any,Worcester,8000/4000/Ri,Opening (window/door/vent) below/side/above,300,"150mm for change of fabric (Ri); 300mm all others"
 Any,Worcester,8000/4000/Ri,Opposite opening,2000,
 Any,Worcester,8000/4000/Ri,Internal/external corner,300,
 Any,Worcester,8000/4000/Ri,Lightwell,600,"300mm each side; flue max 1000mm from top"
@@ -10,7 +10,7 @@ Any,Vaillant,ecoFIT/ecoTEC,Below eaves/gutters/pipes,25,"If extended past overha
 Any,Vaillant,ecoFIT/ecoTEC,Boundary,300,
 Any,Vaillant,ecoFIT/ecoTEC,Opposing terminals,1200,
 Any,Vaillant,ecoFIT/ecoTEC,Window/door/vent (side/above/below),300,
-Any,Vaillant,ecoFIT/ecoTEC,Window (fixed non-vented),150,
+Any,Vaillant,ecoFIT/ecoTEC,Change of fabric,150,
 Any,Vaillant,ecoFIT/ecoTEC,Diagonal to opening,600,
 Any,Vaillant,ecoFIT/ecoTEC,From pitched roof,400,"500 in heavy snow regions"
 Any,Vaillant,ecoFIT/ecoTEC,Drainpipes/soil pipes,25,
