@@ -3336,14 +3336,23 @@
                 const finalHeight = clampedMaxY - clampedY;
 
                 if (finalWidth > 0 && finalHeight > 0) {
-                    state.zones.prohibited.push({
+                    const zone = {
                         x: clampedX,
                         y: clampedY,
                         width: finalWidth,
                         height: finalHeight,
                         reason: `${clearanceMM}mm clearance from ${obs.type}`,
-                        objectType: obs.type
-                    });
+                        objectType: obs.type,
+                        clearanceMM: clearanceMM
+                    };
+
+                    // Store window points for specialized rendering
+                    if (obs.type === 'window' && obs.points && obs.points.length === 4) {
+                        zone.windowPoints = obs.points;
+                        zone.windowType = obs.windowType;
+                    }
+
+                    state.zones.prohibited.push(zone);
                 }
             });
 
@@ -3460,6 +3469,12 @@
                         hasConflict = true;
                         break;
                     }
+                } else if (zone.objectType === 'window' && zone.windowPoints) {
+                    // Check window clearance zone with circles and parallel lines
+                    if (isPointInWindowClearance(state.position.x, state.position.y, zone.windowPoints, zone.clearanceMM)) {
+                        hasConflict = true;
+                        break;
+                    }
                 } else {
                     // Check rectangular zone
                     let zoneX = zone.x;
@@ -3524,6 +3539,162 @@
             ctx.closePath();
             if (fill) ctx.fill();
             if (stroke) ctx.stroke();
+        }
+
+        // Check if a point is inside window clearance zone
+        function isPointInWindowClearance(x, y, points, clearanceMM) {
+            if (!points || points.length !== 4 || !state.pxPerMM) return false;
+
+            const radiusPx = clearanceMM * state.pxPerMM;
+            const effectiveRadiusPx = state.plumeKitMode ? radiusPx * 0.5 : radiusPx;
+
+            // Check if point is inside any corner circle
+            for (let i = 0; i < 4; i++) {
+                const distance = Math.sqrt(
+                    Math.pow(x - points[i].x, 2) +
+                    Math.pow(y - points[i].y, 2)
+                );
+                if (distance < effectiveRadiusPx) {
+                    return true;
+                }
+            }
+
+            // Check if point is in the clearance zone defined by parallel lines
+            // For each edge, check if point is on the "outside" (clearance) side
+            const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+            const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+
+            for (let i = 0; i < 4; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % 4];
+
+                // Calculate edge vector
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length === 0) continue;
+
+                // Normalized perpendicular vector
+                const perpX = -dy / length;
+                const perpY = dx / length;
+
+                // Determine outward direction
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const toCenterX = centerX - midX;
+                const toCenterY = centerY - midY;
+
+                const dotProduct = perpX * toCenterX + perpY * toCenterY;
+                const outwardX = dotProduct > 0 ? -perpX : perpX;
+                const outwardY = dotProduct > 0 ? -perpY : perpY;
+
+                // Distance from point to edge
+                const toPointX = x - p1.x;
+                const toPointY = y - p1.y;
+                const distanceToEdge = toPointX * outwardX + toPointY * outwardY;
+
+                // Check if point is in clearance zone for this edge
+                // and if it's within the edge's bounds
+                if (distanceToEdge > 0 && distanceToEdge < effectiveRadiusPx) {
+                    // Check if point projects onto the edge segment
+                    const edgeX = dx / length;
+                    const edgeY = dy / length;
+                    const projection = toPointX * edgeX + toPointY * edgeY;
+
+                    if (projection >= 0 && projection <= length) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // Draw window clearance on any canvas context
+        function drawWindowClearanceOnCanvas(ctx, points, clearanceMM, fillStyle, strokeStyle, dashPattern) {
+            if (!points || points.length !== 4 || !state.pxPerMM) return;
+
+            const radiusPx = clearanceMM * state.pxPerMM;
+
+            // Apply 50% reduction for plume kit mode
+            const effectiveRadiusPx = state.plumeKitMode ? radiusPx * 0.5 : radiusPx;
+
+            // Save context state
+            const originalFillStyle = ctx.fillStyle;
+            const originalStrokeStyle = ctx.strokeStyle;
+            const originalLineWidth = ctx.lineWidth;
+
+            ctx.fillStyle = fillStyle;
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = 3;
+            if (dashPattern) ctx.setLineDash(dashPattern);
+
+            // Draw circles at each corner
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.arc(points[i].x, points[i].y, effectiveRadiusPx, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Draw parallel lines along each edge, 300mm away
+            for (let i = 0; i < 4; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % 4];
+
+                // Calculate edge vector
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length === 0) continue;
+
+                // Normalized edge vector
+                const edgeX = dx / length;
+                const edgeY = dy / length;
+
+                // Perpendicular vector (pointing outward)
+                const perpX = -edgeY;
+                const perpY = edgeX;
+
+                // Determine if this perpendicular points outward from the window
+                // by checking the center of the window
+                const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+                const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const toCenterX = centerX - midX;
+                const toCenterY = centerY - midY;
+
+                // Dot product to determine direction
+                const dotProduct = perpX * toCenterX + perpY * toCenterY;
+                const outwardX = dotProduct > 0 ? -perpX : perpX;
+                const outwardY = dotProduct > 0 ? -perpY : perpY;
+
+                // Calculate offset line points
+                const offsetP1X = p1.x + outwardX * effectiveRadiusPx;
+                const offsetP1Y = p1.y + outwardY * effectiveRadiusPx;
+                const offsetP2X = p2.x + outwardX * effectiveRadiusPx;
+                const offsetP2Y = p2.y + outwardY * effectiveRadiusPx;
+
+                // Draw the parallel line
+                ctx.beginPath();
+                ctx.moveTo(offsetP1X, offsetP1Y);
+                ctx.lineTo(offsetP2X, offsetP2Y);
+                ctx.stroke();
+            }
+
+            // Restore context state
+            if (dashPattern) ctx.setLineDash([]);
+            ctx.fillStyle = originalFillStyle;
+            ctx.strokeStyle = originalStrokeStyle;
+            ctx.lineWidth = originalLineWidth;
+        }
+
+        // Draw window clearance with circles at corners and parallel lines (uses state.ctx)
+        function drawWindowClearance(points, clearanceMM, fillStyle, strokeStyle, dashPattern) {
+            drawWindowClearanceOnCanvas(state.ctx, points, clearanceMM, fillStyle, strokeStyle, dashPattern);
         }
 
         function drawClearanceZones() {
@@ -3607,6 +3778,10 @@
 
                     drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
                     applyProhibitedStyles();
+                } else if (zone.objectType === 'window' && zone.windowPoints) {
+                    // Use special window clearance with circles at corners and parallel lines
+                    drawWindowClearance(zone.windowPoints, zone.clearanceMM, prohibitedFill, prohibitedStroke, prohibitedDash);
+                    applyProhibitedStyles();
                 } else {
                     // Use rounded rectangles for clearance zones (300mm corner radius)
                     const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
@@ -3627,23 +3802,32 @@
             state.ctx.setLineDash([]);
             
             // Draw restricted zones (blue)
-            state.ctx.fillStyle = 'rgba(66, 153, 225, 0.2)';
-            state.ctx.strokeStyle = '#4299e1';
+            const restrictedFill = 'rgba(66, 153, 225, 0.2)';
+            const restrictedStroke = '#4299e1';
+            const restrictedDash = [5, 5];
+
+            state.ctx.fillStyle = restrictedFill;
+            state.ctx.strokeStyle = restrictedStroke;
             state.ctx.lineWidth = 2;
-            state.ctx.setLineDash([5, 5]);
+            state.ctx.setLineDash(restrictedDash);
 
             state.zones.restricted.forEach(zone => {
-                const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
-
-                // Apply 50% reduction for plume kit mode
-                if (state.plumeKitMode) {
-                    const reducedWidth = zone.width * 0.5;
-                    const reducedHeight = zone.height * 0.5;
-                    const offsetX = (zone.width - reducedWidth) / 2;
-                    const offsetY = (zone.height - reducedHeight) / 2;
-                    drawRoundedRect(state.ctx, zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight, cornerRadius, true, true);
+                if (zone.objectType === 'window' && zone.windowPoints) {
+                    // Use special window clearance with circles at corners and parallel lines
+                    drawWindowClearance(zone.windowPoints, zone.clearanceMM, restrictedFill, restrictedStroke, restrictedDash);
                 } else {
-                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        const reducedWidth = zone.width * 0.5;
+                        const reducedHeight = zone.height * 0.5;
+                        const offsetX = (zone.width - reducedWidth) / 2;
+                        const offsetY = (zone.height - reducedHeight) / 2;
+                        drawRoundedRect(state.ctx, zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight, cornerRadius, true, true);
+                    } else {
+                        drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    }
                 }
             });
             
@@ -3801,18 +3985,35 @@
                 const color = colors[index % colors.length];
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
-                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Draw window as polygon if it has 4 points
+                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(obs.points[0].x, obs.points[0].y);
+                    for (let i = 1; i < obs.points.length; i++) {
+                        ctx.lineTo(obs.points[i].x, obs.points[i].y);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                } else {
+                    ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+                }
 
                 ctx.fillStyle = color;
                 ctx.font = 'bold 16px Arial';
-                ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 22);
+                const displayType = obs.type === 'window' ? `${obs.windowType || ''} window`.trim() : obs.type;
+                ctx.fillText(`${index + 1}: ${displayType}`, obs.x + 5, obs.y + 22);
             });
 
             // Draw prohibited zones (RED)
-            ctx.fillStyle = 'rgba(245, 101, 101, 0.4)';
-            ctx.strokeStyle = '#f56565';
+            const prohibitedFill = 'rgba(245, 101, 101, 0.4)';
+            const prohibitedStroke = '#f56565';
+            const prohibitedDash = [10, 5];
+
+            ctx.fillStyle = prohibitedFill;
+            ctx.strokeStyle = prohibitedStroke;
             ctx.lineWidth = 3;
-            ctx.setLineDash([10, 5]);
+            ctx.setLineDash(prohibitedDash);
 
             if (state.zones && state.zones.prohibited) {
                 state.zones.prohibited.forEach(zone => {
@@ -3825,6 +4026,9 @@
                         ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.stroke();
+                    } else if (zone.objectType === 'window' && zone.windowPoints) {
+                        // Use special window clearance with circles at corners and parallel lines
+                        drawWindowClearanceOnCanvas(ctx, zone.windowPoints, zone.clearanceMM, prohibitedFill, prohibitedStroke, prohibitedDash);
                     } else {
                         ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
                         ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
@@ -3839,10 +4043,10 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Re-draw prohibited zones to overlap green
-            ctx.fillStyle = 'rgba(245, 101, 101, 0.4)';
-            ctx.strokeStyle = '#f56565';
+            ctx.fillStyle = prohibitedFill;
+            ctx.strokeStyle = prohibitedStroke;
             ctx.lineWidth = 3;
-            ctx.setLineDash([10, 5]);
+            ctx.setLineDash(prohibitedDash);
 
             if (state.zones && state.zones.prohibited) {
                 state.zones.prohibited.forEach(zone => {
@@ -3855,6 +4059,9 @@
                         ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.stroke();
+                    } else if (zone.objectType === 'window' && zone.windowPoints) {
+                        // Use special window clearance with circles at corners and parallel lines
+                        drawWindowClearanceOnCanvas(ctx, zone.windowPoints, zone.clearanceMM, prohibitedFill, prohibitedStroke, prohibitedDash);
                     } else {
                         ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
                         ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
@@ -3899,20 +4106,41 @@
                 const color = colors[index % colors.length];
                 ctx.strokeStyle = color;
                 ctx.lineWidth = 3;
-                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Draw window as polygon if it has 4 points
+                if (obs.type === 'window' && obs.points && obs.points.length === 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(obs.points[0].x, obs.points[0].y);
+                    for (let i = 1; i < obs.points.length; i++) {
+                        ctx.lineTo(obs.points[i].x, obs.points[i].y);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                } else {
+                    ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+                }
 
                 ctx.fillStyle = color;
                 ctx.font = 'bold 16px Arial';
-                ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 22);
+                const displayType = obs.type === 'window' ? `${obs.windowType || ''} window`.trim() : obs.type;
+                ctx.fillText(`${index + 1}: ${displayType}`, obs.x + 5, obs.y + 22);
             });
 
             // For plume management, reduce clearances by 50% (plume kits reduce clearance requirements)
-            ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
-            ctx.strokeStyle = '#f56565';
+            const plumeProhibitedFill = 'rgba(245, 101, 101, 0.3)';
+            const plumeProhibitedStroke = '#f56565';
+            const plumeProhibitedDash = [10, 5];
+
+            ctx.fillStyle = plumeProhibitedFill;
+            ctx.strokeStyle = plumeProhibitedStroke;
             ctx.lineWidth = 3;
-            ctx.setLineDash([10, 5]);
+            ctx.setLineDash(plumeProhibitedDash);
 
             if (state.zones && state.zones.prohibited) {
+                // Temporarily enable plume kit mode for drawing
+                const originalPlumeMode = state.plumeKitMode;
+                state.plumeKitMode = true;
+
                 state.zones.prohibited.forEach(zone => {
                     // Reduce zone size by 50% for plume management
                     const reducedWidth = zone.width * 0.5;
@@ -3929,11 +4157,17 @@
                         ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.stroke();
+                    } else if (zone.objectType === 'window' && zone.windowPoints) {
+                        // Use special window clearance with circles at corners and parallel lines (50% reduced)
+                        drawWindowClearanceOnCanvas(ctx, zone.windowPoints, zone.clearanceMM, plumeProhibitedFill, plumeProhibitedStroke, plumeProhibitedDash);
                     } else {
                         ctx.fillRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
                         ctx.strokeRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
                     }
                 });
+
+                // Restore plume kit mode
+                state.plumeKitMode = originalPlumeMode;
             }
 
             ctx.setLineDash([]);
@@ -3943,12 +4177,16 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Re-draw reduced prohibited zones
-            ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
-            ctx.strokeStyle = '#f56565';
+            ctx.fillStyle = plumeProhibitedFill;
+            ctx.strokeStyle = plumeProhibitedStroke;
             ctx.lineWidth = 3;
-            ctx.setLineDash([10, 5]);
+            ctx.setLineDash(plumeProhibitedDash);
 
             if (state.zones && state.zones.prohibited) {
+                // Temporarily enable plume kit mode for drawing
+                const originalPlumeMode2 = state.plumeKitMode;
+                state.plumeKitMode = true;
+
                 state.zones.prohibited.forEach(zone => {
                     const reducedWidth = zone.width * 0.5;
                     const reducedHeight = zone.height * 0.5;
@@ -3964,11 +4202,17 @@
                         ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.stroke();
+                    } else if (zone.objectType === 'window' && zone.windowPoints) {
+                        // Use special window clearance with circles at corners and parallel lines (50% reduced)
+                        drawWindowClearanceOnCanvas(ctx, zone.windowPoints, zone.clearanceMM, plumeProhibitedFill, plumeProhibitedStroke, plumeProhibitedDash);
                     } else {
                         ctx.fillRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
                         ctx.strokeRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
                     }
                 });
+
+                // Restore plume kit mode
+                state.plumeKitMode = originalPlumeMode2;
             }
 
             ctx.setLineDash([]);
