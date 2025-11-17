@@ -3548,22 +3548,33 @@
             const radiusPx = clearanceMM * state.pxPerMM;
             const effectiveRadiusPx = state.plumeKitMode ? radiusPx * 0.5 : radiusPx;
 
-            // Check if point is inside any corner circle
+            // Calculate window center for determining outward direction
+            const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+            const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+
+            // Check if point is inside the window itself (should not be in clearance)
+            // Use simple point-in-polygon test
+            let insideWindow = false;
+            for (let i = 0, j = 3; i < 4; j = i++) {
+                const xi = points[i].x, yi = points[i].y;
+                const xj = points[j].x, yj = points[j].y;
+                const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) insideWindow = !insideWindow;
+            }
+            if (insideWindow) return false;
+
+            // Check if point is inside any corner clearance circle
             for (let i = 0; i < 4; i++) {
                 const distance = Math.sqrt(
                     Math.pow(x - points[i].x, 2) +
                     Math.pow(y - points[i].y, 2)
                 );
-                if (distance < effectiveRadiusPx) {
+                if (distance <= effectiveRadiusPx) {
                     return true;
                 }
             }
 
-            // Check if point is in the clearance zone defined by parallel lines
-            // For each edge, check if point is on the "outside" (clearance) side
-            const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-            const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
-
+            // Check if point is in the clearance zone along any edge
             for (let i = 0; i < 4; i++) {
                 const p1 = points[i];
                 const p2 = points[(i + 1) % 4];
@@ -3575,28 +3586,28 @@
 
                 if (length === 0) continue;
 
-                // Normalized perpendicular vector
-                const perpX = -dy / length;
-                const perpY = dx / length;
+                // Perpendicular vector (rotated 90° clockwise)
+                const perpX = dy / length;
+                const perpY = -dx / length;
 
-                // Determine outward direction
+                // Check if perpendicular points outward
                 const midX = (p1.x + p2.x) / 2;
                 const midY = (p1.y + p2.y) / 2;
                 const toCenterX = centerX - midX;
                 const toCenterY = centerY - midY;
 
+                // Dot product - if negative, perpendicular points outward
                 const dotProduct = perpX * toCenterX + perpY * toCenterY;
-                const outwardX = dotProduct > 0 ? -perpX : perpX;
-                const outwardY = dotProduct > 0 ? -perpY : perpY;
+                const outwardX = dotProduct < 0 ? perpX : -perpX;
+                const outwardY = dotProduct < 0 ? perpY : -perpY;
 
-                // Distance from point to edge
+                // Distance from point to edge (in outward direction)
                 const toPointX = x - p1.x;
                 const toPointY = y - p1.y;
                 const distanceToEdge = toPointX * outwardX + toPointY * outwardY;
 
                 // Check if point is in clearance zone for this edge
-                // and if it's within the edge's bounds
-                if (distanceToEdge > 0 && distanceToEdge < effectiveRadiusPx) {
+                if (distanceToEdge > 0 && distanceToEdge <= effectiveRadiusPx) {
                     // Check if point projects onto the edge segment
                     const edgeX = dx / length;
                     const edgeY = dy / length;
@@ -3630,60 +3641,97 @@
             ctx.lineWidth = 3;
             if (dashPattern) ctx.setLineDash(dashPattern);
 
-            // Draw circles at each corner
-            for (let i = 0; i < 4; i++) {
-                ctx.beginPath();
-                ctx.arc(points[i].x, points[i].y, effectiveRadiusPx, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-            }
+            // Calculate window center for determining outward direction
+            const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
+            const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
 
-            // Draw parallel lines along each edge, 300mm away
+            // Calculate outward normals for each edge
+            const normals = [];
             for (let i = 0; i < 4; i++) {
                 const p1 = points[i];
                 const p2 = points[(i + 1) % 4];
 
-                // Calculate edge vector
+                // Edge vector
                 const dx = p2.x - p1.x;
                 const dy = p2.y - p1.y;
                 const length = Math.sqrt(dx * dx + dy * dy);
 
-                if (length === 0) continue;
+                if (length === 0) {
+                    normals.push({ x: 0, y: 0 });
+                    continue;
+                }
 
-                // Normalized edge vector
-                const edgeX = dx / length;
-                const edgeY = dy / length;
+                // Perpendicular vector (rotated 90° clockwise)
+                const perpX = dy / length;
+                const perpY = -dx / length;
 
-                // Perpendicular vector (pointing outward)
-                const perpX = -edgeY;
-                const perpY = edgeX;
-
-                // Determine if this perpendicular points outward from the window
-                // by checking the center of the window
-                const centerX = (points[0].x + points[1].x + points[2].x + points[3].x) / 4;
-                const centerY = (points[0].y + points[1].y + points[2].y + points[3].y) / 4;
+                // Check if perpendicular points outward
                 const midX = (p1.x + p2.x) / 2;
                 const midY = (p1.y + p2.y) / 2;
                 const toCenterX = centerX - midX;
                 const toCenterY = centerY - midY;
 
-                // Dot product to determine direction
+                // Dot product - if negative, perpendicular points outward
                 const dotProduct = perpX * toCenterX + perpY * toCenterY;
-                const outwardX = dotProduct > 0 ? -perpX : perpX;
-                const outwardY = dotProduct > 0 ? -perpY : perpY;
+                const outwardX = dotProduct < 0 ? perpX : -perpX;
+                const outwardY = dotProduct < 0 ? perpY : -perpY;
 
-                // Calculate offset line points
-                const offsetP1X = p1.x + outwardX * effectiveRadiusPx;
-                const offsetP1Y = p1.y + outwardY * effectiveRadiusPx;
-                const offsetP2X = p2.x + outwardX * effectiveRadiusPx;
-                const offsetP2Y = p2.y + outwardY * effectiveRadiusPx;
-
-                // Draw the parallel line
-                ctx.beginPath();
-                ctx.moveTo(offsetP1X, offsetP1Y);
-                ctx.lineTo(offsetP2X, offsetP2Y);
-                ctx.stroke();
+                normals.push({ x: outwardX, y: outwardY });
             }
+
+            // Build the clearance path as a continuous rounded polygon
+            ctx.beginPath();
+
+            // Number of points for each corner arc (for smoothness)
+            const arcPoints = 12;
+
+            for (let i = 0; i < 4; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % 4];
+                const normal = normals[i];
+                const nextNormal = normals[(i + 1) % 4];
+
+                // Offset edge endpoints
+                const offsetP1X = p1.x + normal.x * effectiveRadiusPx;
+                const offsetP1Y = p1.y + normal.y * effectiveRadiusPx;
+                const offsetP2X = p2.x + normal.x * effectiveRadiusPx;
+                const offsetP2Y = p2.y + normal.y * effectiveRadiusPx;
+
+                // Draw offset edge
+                if (i === 0) {
+                    ctx.moveTo(offsetP1X, offsetP1Y);
+                }
+                ctx.lineTo(offsetP2X, offsetP2Y);
+
+                // Draw corner arc at p2
+                // Arc center is at the corner point
+                const arcCenterX = p2.x;
+                const arcCenterY = p2.y;
+
+                // Start angle: direction of current normal
+                const startAngle = Math.atan2(normal.y, normal.x);
+                // End angle: direction of next normal
+                const endAngle = Math.atan2(nextNormal.y, nextNormal.x);
+
+                // Calculate proper arc sweep
+                let angleDiff = endAngle - startAngle;
+                // Normalize to [-π, π]
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+                // Generate arc points
+                for (let j = 1; j <= arcPoints; j++) {
+                    const t = j / arcPoints;
+                    const angle = startAngle + angleDiff * t;
+                    const arcX = arcCenterX + Math.cos(angle) * effectiveRadiusPx;
+                    const arcY = arcCenterY + Math.sin(angle) * effectiveRadiusPx;
+                    ctx.lineTo(arcX, arcY);
+                }
+            }
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
 
             // Restore context state
             if (dashPattern) ctx.setLineDash([]);
