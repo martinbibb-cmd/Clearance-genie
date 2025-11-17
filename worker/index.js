@@ -19,6 +19,12 @@ const CLEARANCE_RULES = {
       wall_front: 300,
       ceiling: 50,
       floor: 500
+    },
+    radiator: {
+      wall_side: 50,
+      wall_front: 300,
+      ceiling: 0,
+      floor: 500
     }
   },
   vaillant: {
@@ -37,6 +43,12 @@ const CLEARANCE_RULES = {
       wall_front: 300,
       ceiling: 50,
       floor: 500
+    },
+    radiator: {
+      wall_side: 50,
+      wall_front: 300,
+      ceiling: 0,
+      floor: 500
     }
   },
   ideal: {
@@ -54,6 +66,12 @@ const CLEARANCE_RULES = {
       wall_side: 50,
       wall_front: 300,
       ceiling: 50,
+      floor: 500
+    },
+    radiator: {
+      wall_side: 50,
+      wall_front: 300,
+      ceiling: 0,
       floor: 500
     }
   }
@@ -102,9 +120,9 @@ export default {
         return jsonResponse({ error: "Invalid calibration (pxPerMM)" }, 400, corsHeaders);
       }
 
-      if (!mode || !["flue", "boiler"].includes(mode)) {
+      if (!mode || !["flue", "boiler", "radiator"].includes(mode)) {
         return jsonResponse(
-          { error: "Invalid mode (must be flue or boiler)" },
+          { error: "Invalid mode (must be flue, boiler, or radiator)" },
           400,
           corsHeaders
         );
@@ -118,7 +136,7 @@ export default {
       if (mode === 'flue') {
         detections = await detectObjectsWithGemini(image, imageWidth, imageHeight);
       } else {
-        // For boiler mode, no detection needed (user manually sets boiler box)
+        // For boiler/radiator mode, no detection needed (user manually marks obstacles)
         detections = [];
       }
 

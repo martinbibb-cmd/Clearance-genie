@@ -424,6 +424,9 @@
                 <button class="btn btn-secondary" onclick="startBoilerMode()">
                     🔧 Boiler Clearances
                 </button>
+                <button class="btn btn-secondary" onclick="startRadiatorMode()">
+                    🌡️ Radiator Clearances
+                </button>
             </div>
 
             <button class="btn" onclick="testClick()">🧪 Test Click</button>
@@ -458,7 +461,11 @@
                         </div>
                         <div>
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">Width:</label>
-                            <input type="number" id="boilerWidth" value="390" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button onclick="adjustBoilerWidth(-10)" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ccc; background: white; cursor: pointer; font-size: 16px;">◀</button>
+                                <input type="number" id="boilerWidth" value="390" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; text-align: center;">
+                                <button onclick="adjustBoilerWidth(10)" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ccc; background: white; cursor: pointer; font-size: 16px;">▶</button>
+                            </div>
                         </div>
                     </div>
 
@@ -483,6 +490,60 @@
                     </div>
 
                     <button class="btn btn-secondary" onclick="updateBoilerDisplay()" style="margin-top: 15px;">
+                        🔄 Update Display
+                    </button>
+                </div>
+            </div>
+
+            <div id="radiatorEditingSection" style="display: none;">
+                <div class="instructions">
+                    <h3>Edit Radiator Dimensions & Clearances</h3>
+                    <p>Adjust the dimensions and clearances as needed:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <h4 style="color: #667eea; margin-bottom: 15px;">Radiator Dimensions (mm)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Height:</label>
+                            <select id="radiatorHeight" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                                <option value="300">300mm</option>
+                                <option value="450">450mm</option>
+                                <option value="600" selected>600mm</option>
+                                <option value="700">700mm</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Width:</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button onclick="adjustRadiatorWidth(-200)" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ccc; background: white; cursor: pointer; font-size: 16px;">◀</button>
+                                <input type="number" id="radiatorWidth" value="400" readonly style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc; text-align: center;">
+                                <button onclick="adjustRadiatorWidth(200)" style="padding: 10px 15px; border-radius: 5px; border: 1px solid #ccc; background: white; cursor: pointer; font-size: 16px;">▶</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 style="color: #667eea; margin-bottom: 15px; margin-top: 20px;">Service Clearances (mm)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Top:</label>
+                            <input type="number" id="radiatorClearanceTop" value="0" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Bottom:</label>
+                            <input type="number" id="radiatorClearanceBottom" value="150" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Left:</label>
+                            <input type="number" id="radiatorClearanceLeft" value="150" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Right:</label>
+                            <input type="number" id="radiatorClearanceRight" value="150" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="updateRadiatorDisplay()" style="margin-top: 15px;">
                         🔄 Update Display
                     </button>
                 </div>
@@ -573,6 +634,12 @@
                     wall_front: 300,
                     ceiling: 50,
                     floor: 500
+                },
+                radiator: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 0,
+                    floor: 500
                 }
             },
             vaillant: {
@@ -591,6 +658,12 @@
                     wall_front: 300,
                     ceiling: 50,
                     floor: 500
+                },
+                radiator: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 0,
+                    floor: 500
                 }
             },
             ideal: {
@@ -608,6 +681,12 @@
                     wall_side: 50,
                     wall_front: 300,
                     ceiling: 50,
+                    floor: 500
+                },
+                radiator: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 0,
                     floor: 500
                 }
             }
@@ -972,6 +1051,51 @@
             console.log('Boiler mode started - canvas ready for position click');
         }
 
+        function startRadiatorMode() {
+            console.log('startRadiatorMode() called');
+
+            // Check if canvas exists
+            if (!state.canvas) {
+                console.error('Canvas not available');
+                return;
+            }
+
+            state.mode = 'radiator';
+            state.position = null; // Clear any previous position
+
+            // Initialize default radiator dimensions
+            state.radiatorDimensions = {
+                height: 600,  // mm (options: 300, 450, 600, 700)
+                width: 400    // mm (400-3000 in 200mm steps)
+            };
+
+            // Initialize default clearances (150mm sides/bottom, 0mm top)
+            state.radiatorClearances = {
+                top: 0,       // mm
+                bottom: 150,  // mm
+                left: 150,    // mm
+                right: 150    // mm
+            };
+
+            document.getElementById('positionInstructions').style.display = 'block';
+            document.getElementById('positionStatus').textContent = '🌡️ Tap where the radiator center will be located';
+
+            // Remove ALL existing listeners first (cleanup)
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
+            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
+
+            // Add radiator-specific listener
+            state.canvas.addEventListener('click', handleRadiatorPositionClick);
+
+            // Make sure canvas is clickable
+            state.canvas.style.cursor = 'crosshair';
+            state.canvas.style.pointerEvents = 'auto';
+
+            console.log('Radiator mode started - canvas ready for position click');
+        }
+
         function handleBoilerPositionClick(e) {
             if (state.isCalibrating) return;
 
@@ -991,6 +1115,30 @@
 
             // Show boiler editing controls
             document.getElementById('boilerEditingSection').style.display = 'block';
+
+            // Show obstacle marking UI
+            document.getElementById('obstacleMarkingSection').style.display = 'block';
+        }
+
+        function handleRadiatorPositionClick(e) {
+            if (state.isCalibrating) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+
+            // Draw radiator box and clearances
+            drawRadiatorWithClearances();
+
+            document.getElementById('positionStatus').textContent = '✅ Radiator position set! Edit dimensions and mark obstacles below.';
+
+            // Remove click listener
+            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
+
+            // Show radiator editing controls
+            document.getElementById('radiatorEditingSection').style.display = 'block';
 
             // Show obstacle marking UI
             document.getElementById('obstacleMarkingSection').style.display = 'block';
@@ -1057,6 +1205,41 @@
             drawBoilerWithClearances();
         }
 
+        function updateRadiatorDisplay() {
+            // Read values from inputs
+            state.radiatorDimensions.height = parseInt(document.getElementById('radiatorHeight').value) || 600;
+            state.radiatorDimensions.width = parseInt(document.getElementById('radiatorWidth').value) || 400;
+            state.radiatorClearances.top = parseInt(document.getElementById('radiatorClearanceTop').value) || 0;
+            state.radiatorClearances.bottom = parseInt(document.getElementById('radiatorClearanceBottom').value) || 150;
+            state.radiatorClearances.left = parseInt(document.getElementById('radiatorClearanceLeft').value) || 150;
+            state.radiatorClearances.right = parseInt(document.getElementById('radiatorClearanceRight').value) || 150;
+
+            // Redraw
+            drawRadiatorWithClearances();
+        }
+
+        function adjustRadiatorWidth(delta) {
+            const currentWidth = parseInt(document.getElementById('radiatorWidth').value) || 400;
+            let newWidth = currentWidth + delta;
+
+            // Clamp to valid range (400 to 3000mm in 200mm steps)
+            newWidth = Math.max(400, Math.min(3000, newWidth));
+
+            document.getElementById('radiatorWidth').value = newWidth;
+            updateRadiatorDisplay();
+        }
+
+        function adjustBoilerWidth(delta) {
+            const currentWidth = parseInt(document.getElementById('boilerWidth').value) || 390;
+            let newWidth = currentWidth + delta;
+
+            // Keep reasonable bounds (minimum 100mm, maximum 1000mm)
+            newWidth = Math.max(100, Math.min(1000, newWidth));
+
+            document.getElementById('boilerWidth').value = newWidth;
+            updateBoilerDisplay();
+        }
+
         function drawBoilerWithClearances() {
             // Clear and redraw
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
@@ -1116,6 +1299,69 @@
             state.ctx.fillText(`Boiler ${state.boilerDimensions.width}×${state.boilerDimensions.height}mm`, boilerX + 10, boilerY + 25);
             state.ctx.fillText(`Clearances: ${state.boilerClearances.top}mm ↑`, boilerX + 10, boilerY - clearanceTopPx + 20);
             state.ctx.fillText(`${state.boilerClearances.bottom}mm ↓`, boilerX + 10, boilerY + boilerHeightPx + clearanceBottomPx - 10);
+        }
+
+        function drawRadiatorWithClearances() {
+            // Clear and redraw
+            state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            const radiatorWidthPx = state.radiatorDimensions.width * state.pxPerMM;
+            const radiatorHeightPx = state.radiatorDimensions.height * state.pxPerMM;
+
+            const clearanceTopPx = state.radiatorClearances.top * state.pxPerMM;
+            const clearanceBottomPx = state.radiatorClearances.bottom * state.pxPerMM;
+            const clearanceLeftPx = state.radiatorClearances.left * state.pxPerMM;
+            const clearanceRightPx = state.radiatorClearances.right * state.pxPerMM;
+
+            // Calculate radiator box position (centered on click)
+            const radiatorX = state.position.x - radiatorWidthPx / 2;
+            const radiatorY = state.position.y - radiatorHeightPx / 2;
+
+            // Draw clearance zone (red transparent)
+            state.ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+            state.ctx.fillRect(
+                radiatorX - clearanceLeftPx,
+                radiatorY - clearanceTopPx,
+                radiatorWidthPx + clearanceLeftPx + clearanceRightPx,
+                radiatorHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+
+            // Draw clearance outline (red dashed)
+            state.ctx.strokeStyle = '#f56565';
+            state.ctx.lineWidth = 3;
+            state.ctx.setLineDash([10, 5]);
+            state.ctx.strokeRect(
+                radiatorX - clearanceLeftPx,
+                radiatorY - clearanceTopPx,
+                radiatorWidthPx + clearanceLeftPx + clearanceRightPx,
+                radiatorHeightPx + clearanceTopPx + clearanceBottomPx
+            );
+            state.ctx.setLineDash([]);
+
+            // Draw radiator box (orange solid for visibility)
+            state.ctx.fillStyle = 'rgba(237, 137, 54, 0.3)';
+            state.ctx.fillRect(radiatorX, radiatorY, radiatorWidthPx, radiatorHeightPx);
+
+            state.ctx.strokeStyle = '#ed8936';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(radiatorX, radiatorY, radiatorWidthPx, radiatorHeightPx);
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Draw labels
+            state.ctx.fillStyle = '#333';
+            state.ctx.font = 'bold 16px Arial';
+            state.ctx.fillText(`Radiator ${state.radiatorDimensions.width}×${state.radiatorDimensions.height}mm`, radiatorX + 10, radiatorY + 25);
+            if (clearanceTopPx > 0) {
+                state.ctx.fillText(`Clearances: ${state.radiatorClearances.top}mm ↑`, radiatorX + 10, radiatorY - clearanceTopPx + 20);
+            }
+            state.ctx.fillText(`${state.radiatorClearances.bottom}mm ↓`, radiatorX + 10, radiatorY + radiatorHeightPx + clearanceBottomPx - 10);
         }
 
         function drawPositionMarker(x, y) {
@@ -1324,6 +1570,53 @@
                     state.ctx.strokeStyle = '#48bb78';
                     state.ctx.lineWidth = 4;
                     state.ctx.strokeRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+                    // Draw center marker
+                    state.ctx.fillStyle = '#667eea';
+                    state.ctx.beginPath();
+                    state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+                    state.ctx.fill();
+                } else if (state.mode === 'radiator' && state.radiatorDimensions) {
+                    // Draw radiator box with clearances
+                    const radiatorWidthPx = state.radiatorDimensions.width * state.pxPerMM;
+                    const radiatorHeightPx = state.radiatorDimensions.height * state.pxPerMM;
+
+                    const clearanceTopPx = state.radiatorClearances.top * state.pxPerMM;
+                    const clearanceBottomPx = state.radiatorClearances.bottom * state.pxPerMM;
+                    const clearanceLeftPx = state.radiatorClearances.left * state.pxPerMM;
+                    const clearanceRightPx = state.radiatorClearances.right * state.pxPerMM;
+
+                    const radiatorX = state.position.x - radiatorWidthPx / 2;
+                    const radiatorY = state.position.y - radiatorHeightPx / 2;
+
+                    // Draw clearance zone (red transparent)
+                    state.ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+                    state.ctx.fillRect(
+                        radiatorX - clearanceLeftPx,
+                        radiatorY - clearanceTopPx,
+                        radiatorWidthPx + clearanceLeftPx + clearanceRightPx,
+                        radiatorHeightPx + clearanceTopPx + clearanceBottomPx
+                    );
+
+                    // Draw clearance outline (red dashed)
+                    state.ctx.strokeStyle = '#f56565';
+                    state.ctx.lineWidth = 3;
+                    state.ctx.setLineDash([10, 5]);
+                    state.ctx.strokeRect(
+                        radiatorX - clearanceLeftPx,
+                        radiatorY - clearanceTopPx,
+                        radiatorWidthPx + clearanceLeftPx + clearanceRightPx,
+                        radiatorHeightPx + clearanceTopPx + clearanceBottomPx
+                    );
+                    state.ctx.setLineDash([]);
+
+                    // Draw radiator box (orange solid)
+                    state.ctx.fillStyle = 'rgba(237, 137, 54, 0.3)';
+                    state.ctx.fillRect(radiatorX, radiatorY, radiatorWidthPx, radiatorHeightPx);
+
+                    state.ctx.strokeStyle = '#ed8936';
+                    state.ctx.lineWidth = 4;
+                    state.ctx.strokeRect(radiatorX, radiatorY, radiatorWidthPx, radiatorHeightPx);
 
                     // Draw center marker
                     state.ctx.fillStyle = '#667eea';
