@@ -3526,7 +3526,7 @@
             if (stroke) ctx.stroke();
         }
 
-        // Check if a point is inside window clearance zone (thick-line approach)
+        // Check if a point is inside window clearance zone (hashed box with rounded corners)
         function isPointInWindowClearance(x, y, points, clearanceMM) {
             if (!points || points.length !== 2 || !state.pxPerMM) return false;
 
@@ -3542,7 +3542,7 @@
             const windowBottom = bottomRight.y;
 
             // The clearance zone extends from the window edge outward by the clearance distance
-            // Outer boundary (clearance limit)
+            // Outer boundary (clearance limit) - bounding box of the rounded rectangle
             const outerLeft = windowLeft - effectiveClearancePx;
             const outerTop = windowTop - effectiveClearancePx;
             const outerRight = windowRight + effectiveClearancePx;
@@ -3554,27 +3554,118 @@
             const innerRight = windowRight;
             const innerBottom = windowBottom;
 
-            // Check if point is inside the outer rectangle
-            const insideOuter = x >= outerLeft && x <= outerRight &&
-                               y >= outerTop && y <= outerBottom;
+            // First check: Is point completely outside the outer bounding box?
+            if (x < outerLeft || x > outerRight || y < outerTop || y > outerBottom) {
+                return false;
+            }
 
-            // Check if point is inside the inner rectangle (the window itself)
+            // Second check: Is point inside the window itself?
             const insideInner = x >= innerLeft && x <= innerRight &&
                                y >= innerTop && y <= innerBottom;
+            if (insideInner) {
+                return false;
+            }
 
-            // Point is in clearance zone if it's inside outer but not inside inner
-            return insideOuter && !insideInner;
+            // Now we know the point is in the annular region between outer and inner rectangles
+            // We need to check if it's within the rounded corners
+
+            const radius = effectiveClearancePx;
+
+            // Define corner centers for the outer rounded rectangle
+            const corners = [
+                { cx: outerLeft + radius, cy: outerTop + radius, type: 'top-left' },
+                { cx: outerRight - radius, cy: outerTop + radius, type: 'top-right' },
+                { cx: outerRight - radius, cy: outerBottom - radius, type: 'bottom-right' },
+                { cx: outerLeft + radius, cy: outerBottom - radius, type: 'bottom-left' }
+            ];
+
+            // Check if point is in a corner region
+            for (const corner of corners) {
+                const inCornerRegion = (
+                    (corner.type === 'top-left' && x < corner.cx && y < corner.cy) ||
+                    (corner.type === 'top-right' && x > corner.cx && y < corner.cy) ||
+                    (corner.type === 'bottom-right' && x > corner.cx && y > corner.cy) ||
+                    (corner.type === 'bottom-left' && x < corner.cx && y > corner.cy)
+                );
+
+                if (inCornerRegion) {
+                    // Calculate distance from corner center
+                    const dx = x - corner.cx;
+                    const dy = y - corner.cy;
+                    const distFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+                    // Point is in clearance zone if distance is within the radius
+                    return distFromCenter <= radius;
+                }
+            }
+
+            // Point is in a straight edge region (not in a corner), so it's in the clearance zone
+            return true;
         }
 
-        // Draw window clearance on any canvas context using thick lines
+        // Create a rounded rectangle path with quarter-circle corners
+        function createRoundedRectPath(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            // Start from top edge, after the top-left radius
+            ctx.moveTo(x + radius, y);
+            // Top edge
+            ctx.lineTo(x + width - radius, y);
+            // Top-right corner (quarter circle)
+            ctx.arc(x + width - radius, y + radius, radius, -Math.PI / 2, 0);
+            // Right edge
+            ctx.lineTo(x + width, y + height - radius);
+            // Bottom-right corner (quarter circle)
+            ctx.arc(x + width - radius, y + height - radius, radius, 0, Math.PI / 2);
+            // Bottom edge
+            ctx.lineTo(x + radius, y + height);
+            // Bottom-left corner (quarter circle)
+            ctx.arc(x + radius, y + height - radius, radius, Math.PI / 2, Math.PI);
+            // Left edge
+            ctx.lineTo(x, y + radius);
+            // Top-left corner (quarter circle)
+            ctx.arc(x + radius, y + radius, radius, Math.PI, -Math.PI / 2);
+            ctx.closePath();
+        }
+
+        // Draw diagonal hatch lines inside a region
+        function drawDiagonalHatch(ctx, x, y, width, height, spacing = 20, angle = 45) {
+            ctx.save();
+
+            // Convert angle to radians
+            const angleRad = angle * Math.PI / 180;
+
+            // Calculate the diagonal span needed to cover the entire rectangle
+            const diagonalLength = Math.sqrt(width * width + height * height) * 2;
+
+            // Start position for hatch lines
+            const startX = x - diagonalLength;
+            const startY = y;
+
+            // Draw hatch lines
+            ctx.beginPath();
+            for (let offset = 0; offset < diagonalLength * 2; offset += spacing) {
+                const lineStartX = startX + offset;
+                const lineStartY = startY;
+                const lineEndX = lineStartX + diagonalLength * Math.cos(angleRad);
+                const lineEndY = lineStartY + diagonalLength * Math.sin(angleRad);
+
+                ctx.moveTo(lineStartX, lineStartY);
+                ctx.lineTo(lineEndX, lineEndY);
+            }
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Draw window clearance on any canvas context using hashed box with rounded corners
         function drawWindowClearanceOnCanvas(ctx, points, clearanceMM, fillStyle, strokeStyle, dashPattern) {
             if (!points || points.length !== 2 || !state.pxPerMM) return;
 
-            // Calculate clearance in pixels - this becomes the line thickness
+            // Calculate clearance in pixels
             const clearancePx = clearanceMM * state.pxPerMM;
 
             // Apply 50% reduction for plume kit mode
-            const lineThickness = state.plumeKitMode ? clearancePx * 0.5 : clearancePx;
+            const effectiveClearance = state.plumeKitMode ? clearancePx * 0.5 : clearancePx;
 
             // Extract top-left and bottom-right corners
             const topLeft = points[0];
@@ -3588,29 +3679,54 @@
             const windowWidth = windowRight - windowLeft;
             const windowHeight = windowBottom - windowTop;
 
+            // Calculate outer rectangle (window + clearance)
+            const outerX = windowLeft - effectiveClearance;
+            const outerY = windowTop - effectiveClearance;
+            const outerWidth = windowWidth + (2 * effectiveClearance);
+            const outerHeight = windowHeight + (2 * effectiveClearance);
+
+            // Corner radius equals the clearance distance
+            const cornerRadius = effectiveClearance;
+
             // Save context state
             ctx.save();
 
-            // Draw the thick rectangle border (the clearance zone)
-            // Since strokeRect centers the line on the path, offset the path outward by halfThickness
-            // so the INNER edge of the stroke aligns with the window boundary
-            const halfThickness = lineThickness / 2;
+            // Create the rounded rectangle path for the clearance zone
+            createRoundedRectPath(ctx, outerX, outerY, outerWidth, outerHeight, cornerRadius);
 
-            ctx.strokeStyle = strokeStyle;
-            ctx.lineWidth = lineThickness;
-            ctx.lineCap = 'round'; // Rounded corners
-            ctx.lineJoin = 'round'; // Rounded corners
+            // Clip to this region for hatching
+            ctx.clip();
+
+            // Fill with base color
+            if (fillStyle) {
+                ctx.fillStyle = fillStyle;
+                createRoundedRectPath(ctx, outerX, outerY, outerWidth, outerHeight, cornerRadius);
+                ctx.fill();
+            }
+
+            // Draw diagonal hatch lines
+            ctx.strokeStyle = strokeStyle || 'rgba(200, 0, 0, 0.5)';
+            ctx.lineWidth = 2;
             if (dashPattern) ctx.setLineDash(dashPattern);
+            else ctx.setLineDash([]);
 
-            // Draw rectangle - path is offset outward so inner edge of stroke = window boundary
-            ctx.strokeRect(
-                windowLeft - halfThickness,
-                windowTop - halfThickness,
-                windowWidth + lineThickness,
-                windowHeight + lineThickness
-            );
+            // Draw 45-degree diagonal hatching
+            const hatchSpacing = 25; // 25mm spacing between hatch lines
+            drawDiagonalHatch(ctx, outerX, outerY, outerWidth, outerHeight, hatchSpacing, 45);
 
-            // Restore context state
+            // Restore to remove clipping
+            ctx.restore();
+
+            // Draw the outline border
+            ctx.save();
+            ctx.strokeStyle = strokeStyle || 'rgba(200, 0, 0, 0.8)';
+            ctx.lineWidth = 3;
+            if (dashPattern) ctx.setLineDash(dashPattern);
+            else ctx.setLineDash([]);
+
+            createRoundedRectPath(ctx, outerX, outerY, outerWidth, outerHeight, cornerRadius);
+            ctx.stroke();
+
             ctx.restore();
         }
 
