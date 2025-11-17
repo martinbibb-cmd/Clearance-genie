@@ -438,15 +438,29 @@
 
                 <label style="display: block; margin: 15px 0;">
                     <strong>Brand:</strong>
-                    <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;">
+                    <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;" onchange="updateModelSelector()">
                         <option value="worcester">Worcester Bosch</option>
                         <option value="vaillant">Vaillant</option>
                         <option value="ideal">Ideal</option>
+                        <option value="glow-worm">Glow-worm</option>
+                        <option value="viessmann">Viessmann</option>
+                    </select>
+                </label>
+
+                <label id="modelSelectorLabel" style="display: none; margin: 15px 0;">
+                    <strong>Model/Range:</strong>
+                    <select id="modelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;" onchange="updateBoilerClearancesFromCSV()">
+                        <option value="">Select a model...</option>
                     </select>
                 </label>
             </div>
 
             <div id="boilerEditingSection" style="display: none;">
+                <div id="clearanceNotesSection" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Special Requirements</h4>
+                    <div id="clearanceNotesContent" style="color: #856404;"></div>
+                </div>
+
                 <div class="instructions">
                     <h3>Edit Boiler Dimensions & Clearances</h3>
                     <p>Adjust the dimensions and clearances as needed:</p>
@@ -617,6 +631,7 @@
         const CARD_HEIGHT_MM = 53.98;
 
         // Brand-specific clearance rules (in mm from obstruction edge to flue/boiler center)
+        // These are fallback/flue rules - boiler rules will be loaded from CSV
         const CLEARANCE_RULES = {
             worcester: {
                 flue: {
@@ -689,8 +704,61 @@
                     ceiling: 0,
                     floor: 500
                 }
+            },
+            "glow-worm": {
+                flue: {
+                    window: 300,
+                    door: 300,
+                    corner: 300,
+                    soffit: 300,
+                    vent: 300,
+                    boundary: 600,
+                    ground: 2000,
+                    downpipe: 75
+                },
+                boiler: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 50,
+                    floor: 500
+                },
+                radiator: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 0,
+                    floor: 500
+                }
+            },
+            viessmann: {
+                flue: {
+                    window: 300,
+                    door: 300,
+                    corner: 300,
+                    soffit: 300,
+                    vent: 300,
+                    boundary: 600,
+                    ground: 2000,
+                    downpipe: 75
+                },
+                boiler: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 50,
+                    floor: 500
+                },
+                radiator: {
+                    wall_side: 50,
+                    wall_front: 300,
+                    ceiling: 0,
+                    floor: 500
+                }
             }
         };
+
+        // Boiler clearance data loaded from CSV
+        let BOILER_CLEARANCES_DATA = [];
+        let AVAILABLE_BRANDS = [];
+        let AVAILABLE_MODELS = {};
 
         // Core state
         const state = {
@@ -713,7 +781,153 @@
             boilerClearances: null
         };
 
-        // Initialize
+        // CSV Parsing and Loading Functions
+        async function loadBoilerClearances() {
+            try {
+                const response = await fetch('data/boiler-clearances.csv');
+                const csvText = await response.text();
+                parseBoilerClearancesCSV(csvText);
+            } catch (error) {
+                console.error('Failed to load boiler clearances CSV:', error);
+                // Fallback to hardcoded values is already in CLEARANCE_RULES
+            }
+        }
+
+        function parseBoilerClearancesCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            BOILER_CLEARANCES_DATA = [];
+            const brandsSet = new Set();
+            const modelsMap = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // Parse CSV line (handle quoted fields)
+                const fields = parseCSVLine(line);
+                if (fields.length < 5) continue;
+
+                const entry = {
+                    type: fields[0],
+                    brand: fields[1],
+                    model: fields[2],
+                    clearanceArea: fields[3],
+                    clearanceMM: fields[4],
+                    notes: fields[5] || ''
+                };
+
+                BOILER_CLEARANCES_DATA.push(entry);
+
+                // Track unique brands
+                if (entry.brand) {
+                    brandsSet.add(entry.brand);
+
+                    // Track models per brand
+                    if (!modelsMap[entry.brand]) {
+                        modelsMap[entry.brand] = new Set();
+                    }
+                    if (entry.model && entry.model !== 'Notes') {
+                        modelsMap[entry.brand].add(entry.model);
+                    }
+                }
+            }
+
+            AVAILABLE_BRANDS = Array.from(brandsSet).sort();
+            AVAILABLE_MODELS = {};
+            for (const brand in modelsMap) {
+                AVAILABLE_MODELS[brand] = Array.from(modelsMap[brand]).sort();
+            }
+
+            console.log('Loaded boiler clearances:', {
+                entries: BOILER_CLEARANCES_DATA.length,
+                brands: AVAILABLE_BRANDS,
+                models: AVAILABLE_MODELS
+            });
+        }
+
+        function parseCSVLine(line) {
+            const fields = [];
+            let currentField = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = i < line.length - 1 ? line[i + 1] : null;
+
+                if (char === '"') {
+                    // Handle escaped quotes ("")
+                    if (inQuotes && nextChar === '"') {
+                        currentField += '"';
+                        i++; // Skip next quote
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    fields.push(currentField.trim());
+                    currentField = '';
+                } else {
+                    currentField += char;
+                }
+            }
+
+            fields.push(currentField.trim());
+            return fields;
+        }
+
+        function getBoilerClearancesForModel(brand, model) {
+            // Normalize brand name (case-insensitive)
+            const normalizedBrand = brand.toLowerCase();
+
+            const entries = BOILER_CLEARANCES_DATA.filter(entry =>
+                entry.brand.toLowerCase() === normalizedBrand &&
+                entry.model === model
+            );
+
+            // Convert to clearances object
+            const clearances = {
+                top: null,
+                bottom: null,
+                left: null,
+                right: null,
+                front: null,
+                rear: null,
+                notes: []
+            };
+
+            entries.forEach(entry => {
+                const area = entry.clearanceArea.toLowerCase();
+                const value = entry.clearanceMM;
+
+                // Parse clearance value (handle ranges like "170/210")
+                const numericValue = value ? parseFloat(value.split('/')[0]) : null;
+
+                if (area.includes('above') || area.includes('top')) {
+                    clearances.top = numericValue;
+                } else if (area.includes('below') || area.includes('bottom')) {
+                    clearances.bottom = numericValue;
+                } else if (area.includes('side') || area.includes('left')) {
+                    clearances.left = numericValue;
+                    clearances.right = numericValue; // Assume symmetric unless specified
+                } else if (area.includes('front')) {
+                    clearances.front = numericValue;
+                } else if (area.includes('rear')) {
+                    clearances.rear = numericValue;
+                }
+
+                // Collect notes
+                if (entry.notes || area.includes('notes')) {
+                    clearances.notes.push(entry.notes || value);
+                }
+            });
+
+            return clearances;
+        }
+
+        // Initialize - Load CSV data on page load
+        loadBoilerClearances();
+
         document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
         function openCamera() {
@@ -1006,6 +1220,84 @@
             console.log('Final canvas pointer-events:', state.canvas.style.pointerEvents);
         }
 
+        function updateModelSelector() {
+            const brand = document.getElementById('brandSelect').value;
+            const modelSelect = document.getElementById('modelSelect');
+            const modelLabel = document.getElementById('modelSelectorLabel');
+
+            // Show model selector only in boiler mode
+            if (state.mode !== 'boiler') return;
+
+            // Find brand in CSV data (case-insensitive)
+            const brandKey = AVAILABLE_BRANDS.find(b => b.toLowerCase() === brand.toLowerCase());
+
+            if (brandKey && AVAILABLE_MODELS[brandKey]) {
+                const models = AVAILABLE_MODELS[brandKey];
+
+                // Populate model dropdown
+                modelSelect.innerHTML = '<option value="">Select a model...</option>';
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    modelSelect.appendChild(option);
+                });
+
+                modelLabel.style.display = 'block';
+            } else {
+                modelLabel.style.display = 'none';
+            }
+        }
+
+        function updateBoilerClearancesFromCSV() {
+            const brand = document.getElementById('brandSelect').value;
+            const model = document.getElementById('modelSelect').value;
+
+            if (!model) return;
+
+            // Get clearances from CSV
+            const clearances = getBoilerClearancesForModel(brand, model);
+
+            console.log('Loaded clearances for', brand, model, ':', clearances);
+
+            // Update the input fields with CSV values
+            if (clearances.top !== null) {
+                document.getElementById('clearanceTop').value = clearances.top;
+                state.boilerClearances.top = clearances.top;
+            }
+            if (clearances.bottom !== null) {
+                document.getElementById('clearanceBottom').value = clearances.bottom;
+                state.boilerClearances.bottom = clearances.bottom;
+            }
+            if (clearances.left !== null) {
+                document.getElementById('clearanceLeft').value = clearances.left;
+                state.boilerClearances.left = clearances.left;
+            }
+            if (clearances.right !== null) {
+                document.getElementById('clearanceRight').value = clearances.right;
+                state.boilerClearances.right = clearances.right;
+            }
+
+            // Show notes if available
+            const notesSection = document.getElementById('clearanceNotesSection');
+            const notesContent = document.getElementById('clearanceNotesContent');
+
+            if (clearances.notes.length > 0) {
+                const notesText = clearances.notes.filter(n => n).join('<br>• ');
+                console.log('Notes:', notesText);
+
+                notesContent.innerHTML = '• ' + notesText;
+                notesSection.style.display = 'block';
+            } else {
+                notesSection.style.display = 'none';
+            }
+
+            // Redraw if position already set
+            if (state.position) {
+                drawBoilerWithClearances();
+            }
+        }
+
         function startBoilerMode() {
             console.log('startBoilerMode() called');
 
@@ -1034,7 +1326,10 @@
             };
 
             document.getElementById('positionInstructions').style.display = 'block';
-            document.getElementById('positionStatus').textContent = '🔧 Tap where the boiler center will be located';
+            document.getElementById('positionStatus').textContent = '🔧 Select brand/model, then tap where the boiler center will be located';
+
+            // Show model selector
+            updateModelSelector();
 
             // Remove ALL existing listeners first (cleanup)
             state.canvas.removeEventListener('click', handlePositionClick);
