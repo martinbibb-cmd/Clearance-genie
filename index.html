@@ -2862,14 +2862,27 @@
             let x = (e.clientX - rect.left) * state.canvasScale;
             let y = (e.clientY - rect.top) * state.canvasScale;
 
-            // Reverse zoom and pan transformation to match redrawCanvasWithObstacles
-            // The canvas transform applies: translate(pan), scale(zoom), translate(center offset)
+            // Reverse zoom and pan transformation to match drawClearanceZones
+            // The canvas transform applies (in order):
+            // 1. translate(panX / canvasScale, panY / canvasScale)
+            // 2. scale(zoomLevel, zoomLevel)
+            // 3. translate((centerX - centerX * zoomLevel) / canvasScale, (centerY - centerY * zoomLevel) / canvasScale)
+            // To reverse: undo in reverse order (3, 2, 1)
+
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
 
-            // Reverse transformations: undo pan, then undo scale, then undo center offset
-            x = (x - state.panX - (centerX - centerX * state.zoomLevel)) / state.zoomLevel;
-            y = (y - state.panY - (centerY - centerY * state.zoomLevel)) / state.zoomLevel;
+            // Undo translate for center offset (T2)
+            x = x - (centerX - centerX * state.zoomLevel) / state.canvasScale;
+            y = y - (centerY - centerY * state.zoomLevel) / state.canvasScale;
+
+            // Undo scale (S)
+            x = x / state.zoomLevel;
+            y = y / state.zoomLevel;
+
+            // Undo translate for pan (T1)
+            x = x - state.panX / state.canvasScale;
+            y = y - state.panY / state.canvasScale;
 
             return {x, y};
         }
@@ -3061,22 +3074,22 @@
         }
 
         function panUp() {
-            state.panY += 150;
+            state.panY += 300;
             applyZoomAndPan();
         }
 
         function panDown() {
-            state.panY -= 150;
+            state.panY -= 300;
             applyZoomAndPan();
         }
 
         function panLeft() {
-            state.panX += 150;
+            state.panX += 300;
             applyZoomAndPan();
         }
 
         function panRight() {
-            state.panX -= 150;
+            state.panX -= 300;
             applyZoomAndPan();
         }
 
@@ -3716,16 +3729,37 @@
 
         // Helper function to draw rounded rectangle
         function drawRoundedRect(ctx, x, y, width, height, radius, fill = false, stroke = true) {
+            // Draw clearance zone with straight lines offset from rectangle and arcs at corners
+            // The rectangle passed in already has the clearance offset applied
+            // We need to draw straight lines for most of each side, with arcs at the corners
+
             ctx.beginPath();
+
+            // Top side: start after left arc, draw to before right arc
             ctx.moveTo(x + radius, y);
             ctx.lineTo(x + width - radius, y);
-            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+
+            // Top-right arc (90 degrees, clockwise from top to right)
+            ctx.arc(x + width - radius, y + radius, radius, -Math.PI/2, 0);
+
+            // Right side: draw from after top arc to before bottom arc
             ctx.lineTo(x + width, y + height - radius);
-            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+
+            // Bottom-right arc (90 degrees, clockwise from right to bottom)
+            ctx.arc(x + width - radius, y + height - radius, radius, 0, Math.PI/2);
+
+            // Bottom side: draw from after right arc to before left arc
             ctx.lineTo(x + radius, y + height);
-            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+
+            // Bottom-left arc (90 degrees, clockwise from bottom to left)
+            ctx.arc(x + radius, y + height - radius, radius, Math.PI/2, Math.PI);
+
+            // Left side: draw from after bottom arc to before top arc
             ctx.lineTo(x, y + radius);
-            ctx.quadraticCurveTo(x, y, x + radius, y);
+
+            // Top-left arc (90 degrees, clockwise from left to top)
+            ctx.arc(x + radius, y + radius, radius, Math.PI, Math.PI*3/2);
+
             ctx.closePath();
             if (fill) ctx.fill();
             if (stroke) ctx.stroke();
