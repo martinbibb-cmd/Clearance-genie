@@ -2503,7 +2503,9 @@
                         width: finalWidth,
                         height: finalHeight,
                         reason: `${clearanceMM}mm clearance from ${obs.type}`,
-                        objectType: obs.type
+                        objectType: obs.type,
+                        clearancePx: clearancePx,
+                        obstacle: obs  // Store reference to original obstacle
                     });
                 }
             });
@@ -2641,6 +2643,51 @@
             if (stroke) ctx.stroke();
         }
 
+        // Draw clearance zone with circular arcs at corners (geometrically correct)
+        // The clearance zone is at exact distance r from the obstacle edges
+        // At corners, this creates circular arcs with radius r
+        function drawClearanceWithArcs(ctx, obstacle, clearanceRadius, fill = false, stroke = true) {
+            const obs = obstacle;
+            const r = clearanceRadius;
+
+            ctx.beginPath();
+
+            // Start at top edge, moving clockwise around the clearance zone
+            // Top-left corner to top-right corner (straight line)
+            ctx.moveTo(obs.x, obs.y - r);
+            ctx.lineTo(obs.x + obs.width, obs.y - r);
+
+            // Top-right arc (quarter circle, 90 degrees clockwise)
+            // Arc centered at top-right corner of obstacle, from -90° to 0°
+            ctx.arc(obs.x + obs.width, obs.y, r, -Math.PI / 2, 0);
+
+            // Right edge: top-right to bottom-right (straight line)
+            ctx.lineTo(obs.x + obs.width + r, obs.y + obs.height);
+
+            // Bottom-right arc (quarter circle, 90 degrees clockwise)
+            // Arc centered at bottom-right corner, from 0° to 90°
+            ctx.arc(obs.x + obs.width, obs.y + obs.height, r, 0, Math.PI / 2);
+
+            // Bottom edge: bottom-right to bottom-left (straight line)
+            ctx.lineTo(obs.x, obs.y + obs.height + r);
+
+            // Bottom-left arc (quarter circle, 90 degrees clockwise)
+            // Arc centered at bottom-left corner, from 90° to 180°
+            ctx.arc(obs.x, obs.y + obs.height, r, Math.PI / 2, Math.PI);
+
+            // Left edge: bottom-left to top-left (straight line)
+            ctx.lineTo(obs.x - r, obs.y);
+
+            // Top-left arc (quarter circle, 90 degrees clockwise)
+            // Arc centered at top-left corner, from 180° to 270°
+            ctx.arc(obs.x, obs.y, r, Math.PI, Math.PI * 1.5);
+
+            ctx.closePath();
+
+            if (fill) ctx.fill();
+            if (stroke) ctx.stroke();
+        }
+
         function drawClearanceZones() {
             // Redraw base
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
@@ -2718,9 +2765,15 @@
                     drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
                     applyProhibitedStyles();
                 } else {
-                    // Use rounded rectangles for clearance zones (15px corner radius)
-                    const cornerRadius = 15;
-                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    // Use clearance with proper circular arcs at corners
+                    // Arc radius equals the clearance distance (geometrically correct)
+                    if (zone.obstacle && zone.clearancePx) {
+                        drawClearanceWithArcs(state.ctx, zone.obstacle, zone.clearancePx, true, true);
+                    } else {
+                        // Fallback to rounded rectangle if obstacle data not available
+                        const cornerRadius = 15;
+                        drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    }
                 }
             });
 
@@ -2733,8 +2786,13 @@
             state.ctx.setLineDash([5, 5]);
 
             state.zones.restricted.forEach(zone => {
-                const cornerRadius = 15;
-                drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                // Use clearance with proper circular arcs at corners
+                if (zone.obstacle && zone.clearancePx) {
+                    drawClearanceWithArcs(state.ctx, zone.obstacle, zone.clearancePx, true, true);
+                } else {
+                    const cornerRadius = 15;
+                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                }
             });
             
             state.ctx.setLineDash([]);
