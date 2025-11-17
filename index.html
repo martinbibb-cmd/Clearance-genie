@@ -984,13 +984,16 @@
             // Draw boiler box and clearances
             drawBoilerWithClearances();
 
-            document.getElementById('positionStatus').textContent = '✅ Boiler position set! You can edit dimensions below.';
+            document.getElementById('positionStatus').textContent = '✅ Boiler position set! Edit dimensions and mark obstacles below.';
 
             // Remove click listener
             state.canvas.removeEventListener('click', handleBoilerPositionClick);
 
             // Show boiler editing controls
             document.getElementById('boilerEditingSection').style.display = 'block';
+
+            // Show obstacle marking UI
+            document.getElementById('obstacleMarkingSection').style.display = 'block';
         }
 
         function handlePositionClick(e) {
@@ -1032,13 +1035,13 @@
 
             console.log('Marker drawn'); // Debug
 
-            document.getElementById('positionStatus').textContent = '✅ Flue terminal position marked! Detecting objects...';
+            document.getElementById('positionStatus').textContent = '✅ Flue terminal position marked! Now mark obstacles below.';
 
             // Remove position click listener
             state.canvas.removeEventListener('click', handlePositionClick);
 
-            // Call Gemini API to detect objects
-            detectObjectsWithGemini();
+            // Show manual obstacle marking UI immediately
+            document.getElementById('obstacleMarkingSection').style.display = 'block';
         }
 
         function updateBoilerDisplay() {
@@ -1278,9 +1281,59 @@
             state.ctx.drawImage(state.photo, 0, 0);
             drawCalibrationOverlay();
 
-            // Draw position marker
+            // Draw position marker based on mode
             if (state.position) {
-                drawPositionMarker(state.position.x, state.position.y);
+                if (state.mode === 'boiler' && state.boilerDimensions) {
+                    // Draw boiler box with clearances
+                    const boilerWidthPx = state.boilerDimensions.width * state.pxPerMM;
+                    const boilerHeightPx = state.boilerDimensions.height * state.pxPerMM;
+
+                    const clearanceTopPx = state.boilerClearances.top * state.pxPerMM;
+                    const clearanceBottomPx = state.boilerClearances.bottom * state.pxPerMM;
+                    const clearanceLeftPx = state.boilerClearances.left * state.pxPerMM;
+                    const clearanceRightPx = state.boilerClearances.right * state.pxPerMM;
+
+                    const boilerX = state.position.x - boilerWidthPx / 2;
+                    const boilerY = state.position.y - boilerHeightPx / 2;
+
+                    // Draw clearance zone (red transparent)
+                    state.ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+                    state.ctx.fillRect(
+                        boilerX - clearanceLeftPx,
+                        boilerY - clearanceTopPx,
+                        boilerWidthPx + clearanceLeftPx + clearanceRightPx,
+                        boilerHeightPx + clearanceTopPx + clearanceBottomPx
+                    );
+
+                    // Draw clearance outline (red dashed)
+                    state.ctx.strokeStyle = '#f56565';
+                    state.ctx.lineWidth = 3;
+                    state.ctx.setLineDash([10, 5]);
+                    state.ctx.strokeRect(
+                        boilerX - clearanceLeftPx,
+                        boilerY - clearanceTopPx,
+                        boilerWidthPx + clearanceLeftPx + clearanceRightPx,
+                        boilerHeightPx + clearanceTopPx + clearanceBottomPx
+                    );
+                    state.ctx.setLineDash([]);
+
+                    // Draw boiler box (green solid)
+                    state.ctx.fillStyle = 'rgba(72, 187, 120, 0.3)';
+                    state.ctx.fillRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+                    state.ctx.strokeStyle = '#48bb78';
+                    state.ctx.lineWidth = 4;
+                    state.ctx.strokeRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+                    // Draw center marker
+                    state.ctx.fillStyle = '#667eea';
+                    state.ctx.beginPath();
+                    state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+                    state.ctx.fill();
+                } else {
+                    // Draw flue position marker
+                    drawPositionMarker(state.position.x, state.position.y);
+                }
             }
 
             // Draw all obstacles
@@ -1514,10 +1567,33 @@
             });
             
             state.ctx.setLineDash([]);
-            
-            // Redraw position marker on top
+
+            // Redraw position marker on top based on mode
             if (state.position) {
-                drawPositionMarker(state.position.x, state.position.y);
+                if (state.mode === 'boiler' && state.boilerDimensions) {
+                    // Draw boiler box with clearances
+                    const boilerWidthPx = state.boilerDimensions.width * state.pxPerMM;
+                    const boilerHeightPx = state.boilerDimensions.height * state.pxPerMM;
+
+                    const boilerX = state.position.x - boilerWidthPx / 2;
+                    const boilerY = state.position.y - boilerHeightPx / 2;
+
+                    // Draw boiler box (green solid)
+                    state.ctx.fillStyle = 'rgba(72, 187, 120, 0.3)';
+                    state.ctx.fillRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+                    state.ctx.strokeStyle = '#48bb78';
+                    state.ctx.lineWidth = 4;
+                    state.ctx.strokeRect(boilerX, boilerY, boilerWidthPx, boilerHeightPx);
+
+                    // Draw center marker
+                    state.ctx.fillStyle = '#667eea';
+                    state.ctx.beginPath();
+                    state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+                    state.ctx.fill();
+                } else {
+                    drawPositionMarker(state.position.x, state.position.y);
+                }
             }
         }
 
