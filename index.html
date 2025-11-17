@@ -726,6 +726,14 @@
                         <span>Safe Zone</span>
                     </div>
                 </div>
+
+                <div style="margin-top: 15px; padding: 10px; background: #f7fafc; border-radius: 8px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-weight: 500;">
+                        <input type="checkbox" id="plumeKitToggle" onchange="togglePlumeKitMode()" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                        <span>💨 Plume Kit Mode (50% reduced clearances)</span>
+                    </label>
+                </div>
+
                 <div id="complianceResult" style="margin-top: 20px;"></div>
             </div>
         </div>
@@ -902,7 +910,9 @@
             panY: 0,
             isPanning: false,
             lastPanX: 0,
-            lastPanY: 0
+            lastPanY: 0,
+            // Plume kit mode
+            plumeKitMode: false
         };
 
         // CSV Parsing and Loading Functions
@@ -2862,7 +2872,7 @@
                 // Horizontal flue obstacle mappings
                 mapping = {
                     window: obstacle.windowType === 'fixed' ?
-                        ['Window (fixed non-vented)', 'Fixed unvented window', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
+                        ['Change of fabric', 'Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'] :
                         ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
                     vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
@@ -2890,6 +2900,15 @@
             return null;
         }
 
+        function togglePlumeKitMode() {
+            state.plumeKitMode = document.getElementById('plumeKitToggle').checked;
+            // Redraw clearance zones with updated mode
+            if (state.zones) {
+                drawClearanceZones();
+                checkCompliance();
+            }
+        }
+
         function checkCompliance() {
             if (!state.position || !state.zones) return;
 
@@ -2902,7 +2921,13 @@
                     // Check circular zone
                     const centerX = zone.x + zone.width / 2;
                     const centerY = zone.y + zone.height / 2;
-                    const radius = zone.width / 2;
+                    let radius = zone.width / 2;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        radius = radius * 0.5;
+                    }
+
                     const distance = Math.sqrt(
                         Math.pow(state.position.x - centerX, 2) +
                         Math.pow(state.position.y - centerY, 2)
@@ -2913,10 +2938,23 @@
                     }
                 } else {
                     // Check rectangular zone
-                    if (state.position.x >= zone.x &&
-                        state.position.x <= zone.x + zone.width &&
-                        state.position.y >= zone.y &&
-                        state.position.y <= zone.y + zone.height) {
+                    let zoneX = zone.x;
+                    let zoneY = zone.y;
+                    let zoneWidth = zone.width;
+                    let zoneHeight = zone.height;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        zoneWidth = zone.width * 0.5;
+                        zoneHeight = zone.height * 0.5;
+                        zoneX = zone.x + (zone.width - zoneWidth) / 2;
+                        zoneY = zone.y + (zone.height - zoneHeight) / 2;
+                    }
+
+                    if (state.position.x >= zoneX &&
+                        state.position.x <= zoneX + zoneWidth &&
+                        state.position.y >= zoneY &&
+                        state.position.y <= zoneY + zoneHeight) {
                         hasConflict = true;
                         break;
                     }
@@ -3038,12 +3076,27 @@
                         }
                     }
 
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        radiusPx = radiusPx * 0.5;
+                    }
+
                     drawCircularClearance(centerX, centerY, radiusPx, prohibitedFill, prohibitedDash);
                     applyProhibitedStyles();
                 } else {
-                    // Use rounded rectangles for clearance zones (15px corner radius)
-                    const cornerRadius = 15;
-                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    // Use rounded rectangles for clearance zones (300mm corner radius)
+                    const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
+
+                    // Apply 50% reduction for plume kit mode
+                    if (state.plumeKitMode) {
+                        const reducedWidth = zone.width * 0.5;
+                        const reducedHeight = zone.height * 0.5;
+                        const offsetX = (zone.width - reducedWidth) / 2;
+                        const offsetY = (zone.height - reducedHeight) / 2;
+                        drawRoundedRect(state.ctx, zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight, cornerRadius, true, true);
+                    } else {
+                        drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                    }
                 }
             });
 
@@ -3056,8 +3109,18 @@
             state.ctx.setLineDash([5, 5]);
 
             state.zones.restricted.forEach(zone => {
-                const cornerRadius = 15;
-                drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                const cornerRadius = state.pxPerMM ? 300 * state.pxPerMM : 15;
+
+                // Apply 50% reduction for plume kit mode
+                if (state.plumeKitMode) {
+                    const reducedWidth = zone.width * 0.5;
+                    const reducedHeight = zone.height * 0.5;
+                    const offsetX = (zone.width - reducedWidth) / 2;
+                    const offsetY = (zone.height - reducedHeight) / 2;
+                    drawRoundedRect(state.ctx, zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight, cornerRadius, true, true);
+                } else {
+                    drawRoundedRect(state.ctx, zone.x, zone.y, zone.width, zone.height, cornerRadius, true, true);
+                }
             });
             
             state.ctx.setLineDash([]);
@@ -3138,6 +3201,8 @@
             state.markingMode = null;
             state.markingPoints = [];
             state.zones = null;
+            state.plumeKitMode = false;
+            document.getElementById('plumeKitToggle').checked = false;
 
             if (state.photo) {
                 state.ctx.drawImage(state.photo, 0, 0);
