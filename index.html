@@ -439,6 +439,9 @@
                 <button class="btn btn-secondary" onclick="startRadiatorMode()">
                     🌡️ Radiator Clearances
                 </button>
+                <button class="btn btn-secondary" onclick="startCylinderMode()">
+                    🗜️ Cylinder Placement
+                </button>
             </div>
 
             <button class="btn" onclick="testClick()">🧪 Test Click</button>
@@ -451,11 +454,7 @@
                 <label style="display: block; margin: 15px 0;">
                     <strong>Brand:</strong>
                     <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;" onchange="updateModelSelector()">
-                        <option value="worcester">Worcester Bosch</option>
-                        <option value="vaillant">Vaillant</option>
-                        <option value="ideal">Ideal</option>
-                        <option value="glow-worm">Glow-worm</option>
-                        <option value="viessmann">Viessmann</option>
+                        <option value="">Select a brand...</option>
                     </select>
                 </label>
 
@@ -518,6 +517,10 @@
                     <button class="btn btn-secondary" onclick="updateBoilerDisplay()" style="margin-top: 15px;">
                         🔄 Update Display
                     </button>
+
+                    <button class="btn btn-secondary" id="downloadBoilerMarkupBtn" onclick="downloadCurrentCanvas('boiler-markup.png')" style="margin-top: 10px; display: none;">
+                        💾 Download Image with Boiler Markup
+                    </button>
                 </div>
             </div>
 
@@ -572,7 +575,47 @@
                     <button class="btn btn-secondary" onclick="updateRadiatorDisplay()" style="margin-top: 15px;">
                         🔄 Update Display
                     </button>
+
+                    <button class="btn btn-secondary" id="downloadRadiatorMarkupBtn" onclick="downloadCurrentCanvas('radiator-markup.png')" style="margin-top: 10px; display: none;">
+                        💾 Download Image with Radiator Markup
+                    </button>
                 </div>
+            </div>
+
+            <div id="cylinderEditingSection" style="display: none;">
+                <div class="instructions">
+                    <h3>Select Cylinder</h3>
+                    <p>Choose the cylinder brand and model:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <label style="display: block; margin-bottom: 15px;">
+                        <strong>Brand:</strong>
+                        <select id="cylinderBrandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="updateCylinderModelSelector()">
+                            <option value="">Select a brand...</option>
+                        </select>
+                    </label>
+
+                    <label id="cylinderModelSelectorLabel" style="display: none; margin-bottom: 15px;">
+                        <strong>Model:</strong>
+                        <select id="cylinderModelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="displayCylinderDetails()">
+                            <option value="">Select a model...</option>
+                        </select>
+                    </label>
+
+                    <div id="cylinderDetailsDisplay" style="display: none; margin-top: 20px; background: white; padding: 15px; border-radius: 8px;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">Cylinder Details</h4>
+                        <div id="cylinderDetailsList"></div>
+                    </div>
+                </div>
+
+                <button class="btn" id="placeCylinderBtn" onclick="enableCylinderPlacement()" style="margin-top: 10px; display: none;">
+                    📍 Place Cylinder on Image
+                </button>
+
+                <button class="btn btn-secondary" id="downloadCylinderMarkupBtn" onclick="downloadCurrentCanvas('cylinder-markup.png')" style="margin-top: 10px; display: none;">
+                    💾 Download Image with Cylinder Markup
+                </button>
             </div>
 
             <div id="flueEditingSection" style="display: none;">
@@ -883,6 +926,11 @@
         let VERTICAL_FLUE_CLEARANCES_DATA = [];
         let VERTICAL_FLUE_AVAILABLE_BRANDS = [];
         let VERTICAL_FLUE_AVAILABLE_MODELS = {};
+
+        // Cylinder data loaded from CSV
+        let CYLINDERS_DATA = [];
+        let CYLINDER_AVAILABLE_BRANDS = [];
+        let CYLINDER_AVAILABLE_MODELS = {};
 
         // Core state
         const state = {
@@ -1239,10 +1287,100 @@
             return clearances;
         }
 
+        // Cylinder loading functions
+        async function loadCylinders() {
+            try {
+                const response = await fetch('data/cylinders.csv');
+                const csvText = await response.text();
+                parseCylindersCSV(csvText);
+            } catch (error) {
+                console.error('Failed to load cylinders CSV:', error);
+            }
+        }
+
+        function parseCylindersCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            CYLINDERS_DATA = [];
+            const brandsSet = new Set();
+            const modelsMap = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const fields = parseCSVLine(line);
+                if (fields.length < 5) continue;
+
+                const entry = {
+                    brand: fields[0],
+                    type: fields[1],
+                    model: fields[2],
+                    volume: fields[3],
+                    dimensions: fields[4],
+                    price: fields[5] || '',
+                    code: fields[6] || ''
+                };
+
+                CYLINDERS_DATA.push(entry);
+
+                // Track unique brands
+                if (entry.brand) {
+                    brandsSet.add(entry.brand);
+
+                    // Track models per brand
+                    if (!modelsMap[entry.brand]) {
+                        modelsMap[entry.brand] = new Set();
+                    }
+                    if (entry.model) {
+                        const key = `${entry.type} - ${entry.model} - ${entry.volume}`;
+                        modelsMap[entry.brand].add(key);
+                    }
+                }
+            }
+
+            CYLINDER_AVAILABLE_BRANDS = Array.from(brandsSet).sort();
+            CYLINDER_AVAILABLE_MODELS = {};
+            for (const brand in modelsMap) {
+                CYLINDER_AVAILABLE_MODELS[brand] = Array.from(modelsMap[brand]).sort();
+            }
+
+            console.log('Loaded cylinders:', {
+                entries: CYLINDERS_DATA.length,
+                brands: CYLINDER_AVAILABLE_BRANDS,
+                models: CYLINDER_AVAILABLE_MODELS
+            });
+        }
+
+        function getCylinderByKey(brand, modelKey) {
+            return CYLINDERS_DATA.find(entry => {
+                const key = `${entry.type} - ${entry.model} - ${entry.volume}`;
+                return entry.brand === brand && key === modelKey;
+            });
+        }
+
+        // Parse dimensions from format like "1200h x 520dia"
+        function parseCylinderDimensions(dimStr) {
+            if (!dimStr) return null;
+
+            const heightMatch = dimStr.match(/(\d+)h/);
+            const diameterMatch = dimStr.match(/(\d+)dia/);
+
+            if (heightMatch && diameterMatch) {
+                return {
+                    height: parseInt(heightMatch[1]),
+                    diameter: parseInt(diameterMatch[1])
+                };
+            }
+            return null;
+        }
+
         // Initialize - Load CSV data on page load
         loadBoilerClearances();
         loadFlueClearances();
         loadVerticalFlueClearances();
+        loadCylinders();
 
         document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
@@ -1779,11 +1917,13 @@
             // Show model selector only in boiler mode
             if (state.mode !== 'boiler') return;
 
-            // Find brand in CSV data (case-insensitive)
-            const brandKey = AVAILABLE_BRANDS.find(b => b.toLowerCase() === brand.toLowerCase());
+            if (!brand) {
+                modelLabel.style.display = 'none';
+                return;
+            }
 
-            if (brandKey && AVAILABLE_MODELS[brandKey]) {
-                const models = AVAILABLE_MODELS[brandKey];
+            if (AVAILABLE_MODELS[brand]) {
+                const models = AVAILABLE_MODELS[brand];
 
                 // Populate model dropdown
                 modelSelect.innerHTML = '<option value="">Select a model...</option>';
@@ -1879,6 +2019,16 @@
             document.getElementById('positionInstructions').style.display = 'block';
             document.getElementById('positionStatus').textContent = '🔧 Select brand/model, then tap where the boiler center will be located';
 
+            // Populate brand selector from CSV data
+            const brandSelect = document.getElementById('brandSelect');
+            brandSelect.innerHTML = '<option value="">Select a brand...</option>';
+            AVAILABLE_BRANDS.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandSelect.appendChild(option);
+            });
+
             // Show model selector
             updateModelSelector();
 
@@ -1940,6 +2090,189 @@
             state.canvas.style.pointerEvents = 'auto';
 
             console.log('Radiator mode started - canvas ready for position click');
+        }
+
+        function startCylinderMode() {
+            console.log('startCylinderMode() called');
+
+            // Check if canvas exists
+            if (!state.canvas) {
+                console.error('Canvas not available');
+                return;
+            }
+
+            state.mode = 'cylinder';
+            state.position = null; // Clear any previous position
+
+            // Show cylinder selection UI
+            document.getElementById('cylinderEditingSection').style.display = 'block';
+            document.getElementById('boilerEditingSection').style.display = 'none';
+            document.getElementById('radiatorEditingSection').style.display = 'none';
+            document.getElementById('flueEditingSection').style.display = 'none';
+            document.getElementById('verticalFlueEditingSection').style.display = 'none';
+
+            // Populate brand selector
+            updateCylinderBrandSelector();
+
+            console.log('Cylinder mode started');
+        }
+
+        function updateCylinderBrandSelector() {
+            const brandSelect = document.getElementById('cylinderBrandSelect');
+            brandSelect.innerHTML = '<option value="">Select a brand...</option>';
+
+            CYLINDER_AVAILABLE_BRANDS.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandSelect.appendChild(option);
+            });
+        }
+
+        function updateCylinderModelSelector() {
+            const brand = document.getElementById('cylinderBrandSelect').value;
+            const modelSelect = document.getElementById('cylinderModelSelect');
+            const modelLabel = document.getElementById('cylinderModelSelectorLabel');
+
+            if (!brand) {
+                modelLabel.style.display = 'none';
+                return;
+            }
+
+            modelSelect.innerHTML = '<option value="">Select a model...</option>';
+
+            const models = CYLINDER_AVAILABLE_MODELS[brand] || [];
+            models.forEach(modelKey => {
+                const option = document.createElement('option');
+                option.value = modelKey;
+                option.textContent = modelKey;
+                modelSelect.appendChild(option);
+            });
+
+            modelLabel.style.display = 'block';
+        }
+
+        function displayCylinderDetails() {
+            const brand = document.getElementById('cylinderBrandSelect').value;
+            const modelKey = document.getElementById('cylinderModelSelect').value;
+
+            if (!brand || !modelKey) {
+                document.getElementById('cylinderDetailsDisplay').style.display = 'none';
+                document.getElementById('placeCylinderBtn').style.display = 'none';
+                return;
+            }
+
+            const cylinder = getCylinderByKey(brand, modelKey);
+            if (!cylinder) {
+                console.error('Cylinder not found:', brand, modelKey);
+                return;
+            }
+
+            // Parse dimensions
+            const dims = parseCylinderDimensions(cylinder.dimensions);
+
+            // Store in state
+            state.cylinderDimensions = dims || { height: 1200, diameter: 520 };
+            state.cylinderInfo = cylinder;
+
+            // Display details
+            const detailsList = document.getElementById('cylinderDetailsList');
+            detailsList.innerHTML = `
+                <p><strong>Type:</strong> ${cylinder.type}</p>
+                <p><strong>Model:</strong> ${cylinder.model}</p>
+                <p><strong>Volume:</strong> ${cylinder.volume}</p>
+                ${cylinder.dimensions ? `<p><strong>Dimensions:</strong> ${cylinder.dimensions}</p>` : ''}
+                ${cylinder.price ? `<p><strong>Price:</strong> £${cylinder.price}</p>` : ''}
+                ${cylinder.code ? `<p><strong>Code:</strong> ${cylinder.code}</p>` : ''}
+            `;
+
+            document.getElementById('cylinderDetailsDisplay').style.display = 'block';
+            document.getElementById('placeCylinderBtn').style.display = 'block';
+        }
+
+        function enableCylinderPlacement() {
+            // Remove ALL existing listeners first (cleanup)
+            state.canvas.removeEventListener('click', handlePositionClick);
+            state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
+            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
+            state.canvas.removeEventListener('click', handleCylinderPositionClick);
+
+            // Add cylinder-specific listener
+            state.canvas.addEventListener('click', handleCylinderPositionClick);
+
+            // Make sure canvas is clickable
+            state.canvas.style.cursor = 'crosshair';
+            state.canvas.style.pointerEvents = 'auto';
+
+            // Update status
+            document.getElementById('positionInstructions').style.display = 'block';
+            document.getElementById('positionStatus').textContent = '🗜️ Tap where the cylinder center will be located';
+
+            console.log('Cylinder placement enabled - canvas ready for position click');
+        }
+
+        function handleCylinderPositionClick(e) {
+            if (state.isCalibrating) return;
+
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * state.canvasScale;
+            const y = (e.clientY - rect.top) * state.canvasScale;
+
+            state.position = {x, y};
+
+            // Draw cylinder
+            drawCylinderOnCanvas();
+
+            console.log('Cylinder placed at:', state.position);
+        }
+
+        function drawCylinderOnCanvas() {
+            if (!state.cylinderDimensions || !state.position) return;
+
+            // Redraw base
+            state.ctx.drawImage(state.photo, 0, 0);
+            drawCalibrationOverlay();
+
+            const diameterPx = state.cylinderDimensions.diameter * state.pxPerMM;
+            const heightPx = state.cylinderDimensions.height * state.pxPerMM;
+
+            const cylinderX = state.position.x - diameterPx / 2;
+            const cylinderY = state.position.y - heightPx / 2;
+
+            // Draw cylinder outline (rectangle with rounded ends for side view)
+            state.ctx.fillStyle = 'rgba(100, 150, 255, 0.3)';
+            state.ctx.fillRect(cylinderX, cylinderY, diameterPx, heightPx);
+
+            state.ctx.strokeStyle = '#4a90e2';
+            state.ctx.lineWidth = 4;
+            state.ctx.strokeRect(cylinderX, cylinderY, diameterPx, heightPx);
+
+            // Draw rounded top and bottom
+            state.ctx.beginPath();
+            state.ctx.ellipse(state.position.x, cylinderY, diameterPx / 2, diameterPx / 8, 0, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            state.ctx.beginPath();
+            state.ctx.ellipse(state.position.x, cylinderY + heightPx, diameterPx / 2, diameterPx / 8, 0, 0, Math.PI * 2);
+            state.ctx.fill();
+            state.ctx.stroke();
+
+            // Draw center marker
+            state.ctx.fillStyle = '#667eea';
+            state.ctx.beginPath();
+            state.ctx.arc(state.position.x, state.position.y, 8, 0, Math.PI * 2);
+            state.ctx.fill();
+
+            // Label
+            state.ctx.fillStyle = '#4a90e2';
+            state.ctx.font = 'bold 16px Arial';
+            const label = `Cylinder ${state.cylinderDimensions.height}×${state.cylinderDimensions.diameter}mm`;
+            state.ctx.fillText(label, cylinderX + 10, cylinderY + 25);
+
+            // Show download button
+            document.getElementById('downloadCylinderMarkupBtn').style.display = 'block';
         }
 
         function handleBoilerPositionClick(e) {
@@ -2193,6 +2526,9 @@
             state.ctx.fillText(`Boiler ${state.boilerDimensions.width}×${state.boilerDimensions.height}mm`, boilerX + 10, boilerY + 25);
             state.ctx.fillText(`Clearances: ${state.boilerClearances.top}mm ↑`, boilerX + 10, boilerY - clearanceTopPx + 20);
             state.ctx.fillText(`${state.boilerClearances.bottom}mm ↓`, boilerX + 10, boilerY + boilerHeightPx + clearanceBottomPx - 10);
+
+            // Show download button
+            document.getElementById('downloadBoilerMarkupBtn').style.display = 'block';
         }
 
         function drawRadiatorWithClearances() {
@@ -2256,6 +2592,9 @@
                 state.ctx.fillText(`Clearances: ${state.radiatorClearances.top}mm ↑`, radiatorX + 10, radiatorY - clearanceTopPx + 20);
             }
             state.ctx.fillText(`${state.radiatorClearances.bottom}mm ↓`, radiatorX + 10, radiatorY + radiatorHeightPx + clearanceBottomPx - 10);
+
+            // Show download button
+            document.getElementById('downloadRadiatorMarkupBtn').style.display = 'block';
         }
 
         function drawPositionMarker(x, y) {
@@ -3539,6 +3878,18 @@
             const link = document.createElement('a');
             link.download = filename;
             link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadCurrentCanvas(filename) {
+            if (!state.canvas) {
+                console.error('No canvas available to download');
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = state.canvas.toDataURL('image/png');
             link.click();
         }
 
