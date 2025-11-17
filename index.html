@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Clearance Genie</title>
     <style>
         * {
@@ -202,9 +202,13 @@
             h1 {
                 font-size: 1.8em;
             }
-            
+
             .button-group {
                 grid-template-columns: 1fr;
+            }
+
+            #outputImagesSection > div {
+                grid-template-columns: 1fr !important;
             }
         }
 
@@ -563,6 +567,39 @@
                 </div>
             </div>
 
+            <div id="flueEditingSection" style="display: none;">
+                <div id="flueSpecialRulesSection" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Special Flue Rules</h4>
+                    <div id="flueSpecialRulesContent" style="color: #856404;"></div>
+                </div>
+
+                <div class="instructions">
+                    <h3>Select Boiler Brand & Model</h3>
+                    <p>Choose the boiler brand and model for accurate flue clearance requirements:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <label style="display: block; margin-bottom: 15px;">
+                        <strong>Brand:</strong>
+                        <select id="flueBrandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="updateFlueModelSelector()">
+                            <option value="">Select a brand...</option>
+                        </select>
+                    </label>
+
+                    <label id="flueModelSelectorLabel" style="display: none; margin-bottom: 15px;">
+                        <strong>Model/Range:</strong>
+                        <select id="flueModelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="displayFlueClearances()">
+                            <option value="">Select a model...</option>
+                        </select>
+                    </label>
+
+                    <div id="flueClearancesDisplay" style="display: none; margin-top: 20px;">
+                        <h4 style="color: #667eea; margin-bottom: 15px;">📏 Clearance Requirements</h4>
+                        <div id="flueClearancesList" style="background: white; padding: 15px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="obstacleMarkingSection" style="display: none;">
                 <div class="instructions">
                     <h3>Step 4: Mark Obstacles</h3>
@@ -602,6 +639,51 @@
                 <button class="btn" id="calculateBtn" onclick="calculateClearances()" style="margin-top: 20px; display: none;">
                     🔍 Calculate Clearance Zones
                 </button>
+
+                <div id="flueOutputSection" style="display: none; margin-top: 20px;">
+                    <div class="instructions">
+                        <h3>Generate Outputs</h3>
+                        <p>Generate clearance visualizations and written guidance:</p>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-secondary" onclick="generateStandardFlueOutput()">
+                            📊 Standard Flue Output
+                        </button>
+                        <button class="btn btn-secondary" onclick="generatePlumeManagementOutput()">
+                            💨 Plume Management Output
+                        </button>
+                    </div>
+
+                    <button class="btn" onclick="generateWrittenGuidance()" style="margin-top: 10px;">
+                        📝 Generate Written Guidance (AI)
+                    </button>
+
+                    <div id="writtenGuidanceSection" style="display: none; background: #f7fafc; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                        <h4 style="color: #667eea; margin-bottom: 15px;">📝 Installation Guidance</h4>
+                        <div id="writtenGuidanceContent" style="white-space: pre-wrap; line-height: 1.6;"></div>
+                    </div>
+
+                    <div id="outputImagesSection" style="display: none; margin-top: 20px;">
+                        <h4 style="color: #667eea; margin-bottom: 15px;">Generated Outputs</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h5 style="margin-bottom: 10px;">Standard Flue</h5>
+                                <canvas id="standardFlueCanvas" style="width: 100%; border: 2px solid #667eea; border-radius: 8px;"></canvas>
+                                <button class="btn btn-secondary" onclick="downloadCanvas('standardFlueCanvas', 'standard-flue.png')" style="margin-top: 10px; width: 100%;">
+                                    💾 Download
+                                </button>
+                            </div>
+                            <div>
+                                <h5 style="margin-bottom: 10px;">Plume Management</h5>
+                                <canvas id="plumeCanvas" style="width: 100%; border: 2px solid #667eea; border-radius: 8px;"></canvas>
+                                <button class="btn btn-secondary" onclick="downloadCanvas('plumeCanvas', 'plume-management.png')" style="margin-top: 10px; width: 100%;">
+                                    💾 Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="status" id="analysisStatus"></div>
@@ -759,6 +841,11 @@
         let BOILER_CLEARANCES_DATA = [];
         let AVAILABLE_BRANDS = [];
         let AVAILABLE_MODELS = {};
+
+        // Flue clearance data loaded from CSV
+        let FLUE_CLEARANCES_DATA = [];
+        let FLUE_AVAILABLE_BRANDS = [];
+        let FLUE_AVAILABLE_MODELS = {};
 
         // Core state
         const state = {
@@ -925,8 +1012,99 @@
             return clearances;
         }
 
+        // Flue Clearance CSV Functions
+        async function loadFlueClearances() {
+            try {
+                const response = await fetch('data/flue-clearances.csv');
+                const csvText = await response.text();
+                parseFlueClearancesCSV(csvText);
+            } catch (error) {
+                console.error('Failed to load flue clearances CSV:', error);
+            }
+        }
+
+        function parseFlueClearancesCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            FLUE_CLEARANCES_DATA = [];
+            const brandsSet = new Set();
+            const modelsMap = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const fields = parseCSVLine(line);
+                if (fields.length < 5) continue;
+
+                const entry = {
+                    type: fields[0],
+                    brand: fields[1],
+                    model: fields[2],
+                    position: fields[3],
+                    clearanceMM: parseInt(fields[4]) || 0,
+                    specialRules: fields[5] || ''
+                };
+
+                FLUE_CLEARANCES_DATA.push(entry);
+
+                // Track unique brands
+                if (entry.brand && entry.brand !== 'Any') {
+                    brandsSet.add(entry.brand);
+
+                    // Track models per brand
+                    if (!modelsMap[entry.brand]) {
+                        modelsMap[entry.brand] = new Set();
+                    }
+                    if (entry.model) {
+                        modelsMap[entry.brand].add(entry.model);
+                    }
+                }
+            }
+
+            FLUE_AVAILABLE_BRANDS = Array.from(brandsSet).sort();
+            FLUE_AVAILABLE_MODELS = {};
+            for (const brand in modelsMap) {
+                FLUE_AVAILABLE_MODELS[brand] = Array.from(modelsMap[brand]).sort();
+            }
+
+            console.log('Loaded flue clearances:', {
+                entries: FLUE_CLEARANCES_DATA.length,
+                brands: FLUE_AVAILABLE_BRANDS,
+                models: FLUE_AVAILABLE_MODELS
+            });
+        }
+
+        function getFlueClearancesForModel(brand, model) {
+            const normalizedBrand = brand.toLowerCase();
+            const normalizedModel = model.toLowerCase();
+
+            const entries = FLUE_CLEARANCES_DATA.filter(entry => {
+                const entryBrand = entry.brand.toLowerCase();
+                const entryModel = entry.model.toLowerCase();
+
+                return (entry.brand === 'Any' || entryBrand === normalizedBrand) &&
+                       (entryModel === normalizedModel || entryModel.includes(normalizedModel));
+            });
+
+            // Group by position/scenario
+            const clearances = {};
+            entries.forEach(entry => {
+                if (!clearances[entry.position]) {
+                    clearances[entry.position] = {
+                        clearanceMM: entry.clearanceMM,
+                        specialRules: entry.specialRules
+                    };
+                }
+            });
+
+            return clearances;
+        }
+
         // Initialize - Load CSV data on page load
         loadBoilerClearances();
+        loadFlueClearances();
 
         document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
@@ -1187,10 +1365,6 @@
 
         function startFlueMode() {
             console.log('=== START FLUE MODE CALLED ===');
-            console.log('Canvas exists?', !!state.canvas);
-            console.log('Canvas element:', state.canvas);
-            console.log('Canvas parent:', state.canvas ? state.canvas.parentNode : 'N/A');
-            console.log('Canvas computed style:', state.canvas ? window.getComputedStyle(state.canvas).pointerEvents : 'N/A');
 
             // Check if canvas exists
             if (!state.canvas) {
@@ -1199,25 +1373,125 @@
             }
 
             state.mode = 'flue';
-            state.position = null; // Clear any previous position
+            state.position = null;
+            state.flueBrand = null;
+            state.flueModel = null;
+            state.flueClearances = null;
+
+            // Hide other mode sections
+            document.getElementById('boilerEditingSection').style.display = 'none';
+            document.getElementById('radiatorEditingSection').style.display = 'none';
+
+            // Show flue editing section
+            document.getElementById('flueEditingSection').style.display = 'block';
+
+            // Populate brand selector
+            const brandSelect = document.getElementById('flueBrandSelect');
+            brandSelect.innerHTML = '<option value="">Select a brand...</option>';
+            FLUE_AVAILABLE_BRANDS.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand;
+                option.textContent = brand;
+                brandSelect.appendChild(option);
+            });
+
             document.getElementById('positionInstructions').style.display = 'block';
-            document.getElementById('positionStatus').textContent = '🔥 Tap where you want the flue terminal';
-            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('positionStatus').textContent = '🔥 Select brand/model, then tap to mark flue terminal position';
 
             // Remove ALL existing listeners first (cleanup)
             state.canvas.removeEventListener('click', handlePositionClick);
             state.canvas.removeEventListener('click', handleCalibrationClick);
+            state.canvas.removeEventListener('click', handleBoilerPositionClick);
+            state.canvas.removeEventListener('click', handleRadiatorPositionClick);
 
             // Add fresh listener
             state.canvas.addEventListener('click', handlePositionClick);
-            console.log('Added handlePositionClick listener');
 
             // Make sure canvas is clickable
             state.canvas.style.cursor = 'crosshair';
             state.canvas.style.pointerEvents = 'auto';
 
-            console.log('Flue mode started - canvas ready for position click');
-            console.log('Final canvas pointer-events:', state.canvas.style.pointerEvents);
+            console.log('Flue mode started');
+        }
+
+        function updateFlueModelSelector() {
+            const brand = document.getElementById('flueBrandSelect').value;
+            const modelSelect = document.getElementById('flueModelSelect');
+            const modelLabel = document.getElementById('flueModelSelectorLabel');
+
+            if (!brand) {
+                modelLabel.style.display = 'none';
+                return;
+            }
+
+            // Get models for this brand
+            if (FLUE_AVAILABLE_MODELS[brand]) {
+                const models = FLUE_AVAILABLE_MODELS[brand];
+
+                // Populate model dropdown
+                modelSelect.innerHTML = '<option value="">Select a model...</option>';
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    modelSelect.appendChild(option);
+                });
+
+                modelLabel.style.display = 'block';
+            } else {
+                modelLabel.style.display = 'none';
+            }
+        }
+
+        function displayFlueClearances() {
+            const brand = document.getElementById('flueBrandSelect').value;
+            const model = document.getElementById('flueModelSelect').value;
+
+            if (!brand || !model) return;
+
+            state.flueBrand = brand;
+            state.flueModel = model;
+
+            // Get clearances for this model
+            const clearances = getFlueClearancesForModel(brand, model);
+            state.flueClearances = clearances;
+
+            // Display clearances
+            const displayDiv = document.getElementById('flueClearancesDisplay');
+            const listDiv = document.getElementById('flueClearancesList');
+            const rulesSection = document.getElementById('flueSpecialRulesSection');
+            const rulesContent = document.getElementById('flueSpecialRulesContent');
+
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="border-bottom: 2px solid #667eea;"><th style="padding: 8px; text-align: left;">Position/Scenario</th><th style="padding: 8px; text-align: right;">Clearance</th></tr>';
+
+            let specialRules = [];
+
+            for (const [position, data] of Object.entries(clearances)) {
+                html += `<tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px;">${position}</td>
+                    <td style="padding: 8px; text-align: right; font-weight: bold;">${data.clearanceMM}mm</td>
+                </tr>`;
+
+                if (data.specialRules) {
+                    specialRules.push(`<strong>${position}:</strong> ${data.specialRules}`);
+                }
+            }
+
+            html += '</table>';
+            listDiv.innerHTML = html;
+            displayDiv.style.display = 'block';
+
+            // Show special rules if any
+            if (specialRules.length > 0) {
+                rulesContent.innerHTML = '• ' + specialRules.join('<br>• ');
+                rulesSection.style.display = 'block';
+            } else {
+                rulesSection.style.display = 'none';
+            }
+
+            // Update status
+            document.getElementById('positionStatus').textContent = '🔥 Tap on the image to mark the flue terminal position';
         }
 
         function updateModelSelector() {
@@ -1946,8 +2220,19 @@
                 return;
             }
 
-            const brand = document.getElementById('brandSelect').value;
-            const rules = CLEARANCE_RULES[brand][state.mode];
+            let rules;
+            if (state.mode === 'flue') {
+                // Use CSV-based clearances for flue mode
+                if (!state.flueClearances) {
+                    alert('Please select a brand and model first');
+                    return;
+                }
+                rules = state.flueClearances;
+            } else {
+                // Use hardcoded rules for boiler/radiator modes
+                const brand = document.getElementById('brandSelect').value;
+                rules = CLEARANCE_RULES[brand][state.mode];
+            }
 
             // Calculate clearance zones for each obstacle
             state.zones = {
@@ -1956,7 +2241,9 @@
             };
 
             state.obstacles.forEach(obs => {
-                const clearanceMM = getClearanceForObject(obs.type, rules);
+                const clearanceMM = state.mode === 'flue' ?
+                    getClearanceForObjectFlue(obs.type, rules) :
+                    getClearanceForObject(obs.type, rules);
                 if (clearanceMM === null) return;
 
                 const clearancePx = clearanceMM * state.pxPerMM;
@@ -2013,6 +2300,11 @@
 
             // Show results panel
             document.getElementById('resultsPanel').classList.add('active');
+
+            // Show flue output section if in flue mode
+            if (state.mode === 'flue') {
+                document.getElementById('flueOutputSection').style.display = 'block';
+            }
         }
 
         function getClearanceForObject(objectType, rules) {
@@ -2027,6 +2319,35 @@
 
             const ruleKey = mapping[objectType];
             return ruleKey ? (rules[ruleKey] ?? null) : null;
+        }
+
+        function getClearanceForObjectFlue(objectType, flueClearances) {
+            // Map obstacle type to CSV position/scenario
+            const mapping = {
+                window: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                door: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                vent: ['Opening (window/door/vent) below/side/above', 'Window/door/vent (side/above/below)', 'Window/door'],
+                corner: ['Internal/external corner', 'Corner', 'Outside corner'],
+                soffit: ['Below eaves/gutters/pipes', 'Eaves/gutters', 'Eaves/gutter'],
+                downpipe: ['Drainpipes/soil pipes', 'Below eaves/gutters/pipes']
+            };
+
+            const positions = mapping[objectType];
+            if (!positions) return null;
+
+            // Try to find matching clearance from CSV
+            for (const pos of positions) {
+                if (flueClearances[pos]) {
+                    return flueClearances[pos].clearanceMM;
+                }
+            }
+
+            // Check if "Outside corner" rule exists (260mm)
+            if (objectType === 'corner' && flueClearances['Outside corner']) {
+                return flueClearances['Outside corner'].clearanceMM;
+            }
+
+            return null;
         }
 
         function checkCompliance() {
@@ -2282,6 +2603,365 @@
             };
 
             alert('Direct onclick handler added! Try clicking the canvas now.');
+        }
+
+        // Flue Output Generation Functions
+        function generateStandardFlueOutput() {
+            const canvas = document.getElementById('standardFlueCanvas');
+            canvas.width = state.canvas.width;
+            canvas.height = state.canvas.height;
+            const ctx = canvas.getContext('2d');
+
+            // Draw base image
+            ctx.drawImage(state.photo, 0, 0);
+
+            // Draw calibration overlay
+            drawCalibrationOverlayOnCanvas(ctx);
+
+            // Draw obstacles
+            const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800'];
+            state.obstacles.forEach((obs, index) => {
+                const color = colors[index % colors.length];
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                ctx.fillStyle = color;
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 22);
+            });
+
+            // Draw prohibited zones (RED)
+            ctx.fillStyle = 'rgba(245, 101, 101, 0.4)';
+            ctx.strokeStyle = '#f56565';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+
+            if (state.zones && state.zones.prohibited) {
+                state.zones.prohibited.forEach(zone => {
+                    if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
+                        const centerX = zone.x + zone.width / 2;
+                        const centerY = zone.y + zone.height / 2;
+                        const radiusPx = zone.width / 2;
+
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    } else {
+                        ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                        ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                    }
+                });
+            }
+
+            ctx.setLineDash([]);
+
+            // Draw acceptable zones (GREEN) - areas outside prohibited zones
+            ctx.fillStyle = 'rgba(72, 187, 120, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Re-draw prohibited zones to overlap green
+            ctx.fillStyle = 'rgba(245, 101, 101, 0.4)';
+            ctx.strokeStyle = '#f56565';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+
+            if (state.zones && state.zones.prohibited) {
+                state.zones.prohibited.forEach(zone => {
+                    if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
+                        const centerX = zone.x + zone.width / 2;
+                        const centerY = zone.y + zone.height / 2;
+                        const radiusPx = zone.width / 2;
+
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    } else {
+                        ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                        ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                    }
+                });
+            }
+
+            ctx.setLineDash([]);
+
+            // Draw flue position marker
+            if (state.position) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(state.position.x, state.position.y, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Add legend
+            drawLegendOnCanvas(ctx, canvas.width, canvas.height, 'Standard Flue');
+
+            document.getElementById('outputImagesSection').style.display = 'block';
+        }
+
+        function generatePlumeManagementOutput() {
+            const canvas = document.getElementById('plumeCanvas');
+            canvas.width = state.canvas.width;
+            canvas.height = state.canvas.height;
+            const ctx = canvas.getContext('2d');
+
+            // Draw base image
+            ctx.drawImage(state.photo, 0, 0);
+
+            // Draw calibration overlay
+            drawCalibrationOverlayOnCanvas(ctx);
+
+            // Draw obstacles
+            const colors = ['#00ff00', '#ff00ff', '#00ffff', '#ffff00', '#ff8800'];
+            state.obstacles.forEach((obs, index) => {
+                const color = colors[index % colors.length];
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+                ctx.fillStyle = color;
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText(`${index + 1}: ${obs.type}`, obs.x + 5, obs.y + 22);
+            });
+
+            // For plume management, reduce clearances by 50% (plume kits reduce clearance requirements)
+            ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
+            ctx.strokeStyle = '#f56565';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+
+            if (state.zones && state.zones.prohibited) {
+                state.zones.prohibited.forEach(zone => {
+                    // Reduce zone size by 50% for plume management
+                    const reducedWidth = zone.width * 0.5;
+                    const reducedHeight = zone.height * 0.5;
+                    const offsetX = (zone.width - reducedWidth) / 2;
+                    const offsetY = (zone.height - reducedHeight) / 2;
+
+                    if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
+                        const centerX = zone.x + zone.width / 2;
+                        const centerY = zone.y + zone.height / 2;
+                        const radiusPx = (zone.width / 2) * 0.5;
+
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    } else {
+                        ctx.fillRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
+                        ctx.strokeRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
+                    }
+                });
+            }
+
+            ctx.setLineDash([]);
+
+            // Draw acceptable zones (GREEN)
+            ctx.fillStyle = 'rgba(72, 187, 120, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Re-draw reduced prohibited zones
+            ctx.fillStyle = 'rgba(245, 101, 101, 0.3)';
+            ctx.strokeStyle = '#f56565';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+
+            if (state.zones && state.zones.prohibited) {
+                state.zones.prohibited.forEach(zone => {
+                    const reducedWidth = zone.width * 0.5;
+                    const reducedHeight = zone.height * 0.5;
+                    const offsetX = (zone.width - reducedWidth) / 2;
+                    const offsetY = (zone.height - reducedHeight) / 2;
+
+                    if (zone.objectType === 'corner' || zone.objectType === 'downpipe') {
+                        const centerX = zone.x + zone.width / 2;
+                        const centerY = zone.y + zone.height / 2;
+                        const radiusPx = (zone.width / 2) * 0.5;
+
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    } else {
+                        ctx.fillRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
+                        ctx.strokeRect(zone.x + offsetX, zone.y + offsetY, reducedWidth, reducedHeight);
+                    }
+                });
+            }
+
+            ctx.setLineDash([]);
+
+            // Draw flue position marker
+            if (state.position) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(state.position.x, state.position.y, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Add legend
+            drawLegendOnCanvas(ctx, canvas.width, canvas.height, 'Plume Management');
+
+            document.getElementById('outputImagesSection').style.display = 'block';
+        }
+
+        function drawCalibrationOverlayOnCanvas(ctx) {
+            if (state.calibrationPoints.length === 4) {
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                state.calibrationPoints.forEach((point, i) => {
+                    if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                });
+                ctx.closePath();
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        function drawLegendOnCanvas(ctx, width, height, title) {
+            const legendX = width - 250;
+            const legendY = 20;
+
+            // Background
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(legendX, legendY, 230, 120);
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(legendX, legendY, 230, 120);
+
+            // Title
+            ctx.fillStyle = '#667eea';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText(title, legendX + 10, legendY + 25);
+
+            // Legend items
+            ctx.font = '14px Arial';
+
+            // Red box
+            ctx.fillStyle = 'rgba(245, 101, 101, 0.4)';
+            ctx.fillRect(legendX + 10, legendY + 40, 30, 20);
+            ctx.strokeStyle = '#f56565';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(legendX + 10, legendY + 40, 30, 20);
+            ctx.fillStyle = '#333';
+            ctx.fillText('Prohibited Zone', legendX + 50, legendY + 55);
+
+            // Green box
+            ctx.fillStyle = 'rgba(72, 187, 120, 0.2)';
+            ctx.fillRect(legendX + 10, legendY + 70, 30, 20);
+            ctx.strokeStyle = '#48bb78';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(legendX + 10, legendY + 70, 30, 20);
+            ctx.fillStyle = '#333';
+            ctx.fillText('Acceptable Zone', legendX + 50, legendY + 85);
+
+            // Flue marker
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.arc(legendX + 25, legendY + 108, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#333';
+            ctx.fillText('Flue Terminal', legendX + 50, legendY + 113);
+        }
+
+        function downloadCanvas(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        async function generateWrittenGuidance() {
+            const section = document.getElementById('writtenGuidanceSection');
+            const content = document.getElementById('writtenGuidanceContent');
+
+            content.textContent = 'Generating guidance...';
+            section.style.display = 'block';
+
+            try {
+                // Prepare data for OpenAI
+                const prompt = `Generate professional installation guidance for a flue terminal installation with the following details:
+
+Boiler: ${state.flueBrand || 'Unknown'} ${state.flueModel || 'Unknown'}
+
+Marked Obstacles:
+${state.obstacles.map((obs, i) => `${i + 1}. ${obs.type} at position (${Math.round(obs.x)}, ${Math.round(obs.y)})`).join('\n')}
+
+Clearance Requirements:
+${state.flueClearances ? Object.entries(state.flueClearances).map(([pos, data]) =>
+    `- ${pos}: ${data.clearanceMM}mm${data.specialRules ? ' (' + data.specialRules + ')' : ''}`
+).join('\n') : 'Not specified'}
+
+Flue Terminal Position: (${Math.round(state.position.x)}, ${Math.round(state.position.y)})
+
+Scale: ${state.pxPerMM ? state.pxPerMM.toFixed(2) : 'Unknown'} pixels/mm
+
+Please provide:
+1. A summary of the installation requirements
+2. Key clearance distances that must be maintained
+3. Any special considerations or rules
+4. Compliance status (whether the marked position meets requirements)
+5. Recommendations for the installer
+
+Format the response in clear, professional language suitable for a gas engineer.`;
+
+                // Call OpenAI API
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('openai_api_key') || prompt('Please enter your OpenAI API key:'))
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4',
+                        messages: [{
+                            role: 'user',
+                            content: prompt
+                        }],
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('API request failed: ' + response.statusText);
+                }
+
+                const data = await response.json();
+                const guidance = data.choices[0].message.content;
+
+                content.textContent = guidance;
+
+                // Save API key for future use
+                if (localStorage.getItem('openai_api_key') === null) {
+                    const key = prompt('Save this API key for future use?');
+                    if (key) {
+                        localStorage.setItem('openai_api_key', key);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error generating guidance:', error);
+                content.textContent = `Error generating guidance: ${error.message}\n\nPlease check your API key and try again.`;
+            }
         }
 
         async function detectObjectsWithGemini() {
