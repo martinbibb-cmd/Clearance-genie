@@ -342,6 +342,179 @@
             font-size: 18px;
             text-align: center;
         }
+
+        /* Bug Report Button */
+        .bug-report-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #f56565;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(245, 101, 101, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .bug-report-btn:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 101, 101, 0.6);
+        }
+
+        /* Bug Report Modal */
+        .bug-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            overflow-y: auto;
+        }
+
+        .bug-modal-content {
+            background: white;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .bug-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .bug-modal-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .bug-modal-close {
+            background: none;
+            border: none;
+            font-size: 30px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            line-height: 30px;
+        }
+
+        .bug-modal-close:hover {
+            color: #333;
+        }
+
+        .bug-form-group {
+            margin-bottom: 20px;
+        }
+
+        .bug-form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .bug-form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .bug-form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .bug-screenshot-upload {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .bug-screenshot-upload:hover {
+            border-color: #667eea;
+            background: #f7f9ff;
+        }
+
+        .bug-screenshot-preview {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .bug-screenshot-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+
+        .bug-screenshot-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .bug-screenshot-remove {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #f56565;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 20px;
+        }
+
+        .bug-submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .bug-submit-btn:hover {
+            background: #5568d3;
+        }
+
+        .bug-submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
     </style>
 
 </head>
@@ -4516,7 +4689,185 @@ Format the response in clear, professional language suitable for a gas engineer.
             keyDiv.innerHTML = keyHTML;
             keyDiv.style.display = 'block';
         }
+
+        // Bug Report Functions
+        let bugReportScreenshots = [];
+
+        function openBugReportModal() {
+            document.getElementById('bugReportModal').style.display = 'block';
+            bugReportScreenshots = [];
+            document.getElementById('bugDescription').value = '';
+            document.getElementById('bugScreenshotPreview').innerHTML = '';
+        }
+
+        function closeBugReportModal() {
+            document.getElementById('bugReportModal').style.display = 'none';
+        }
+
+        function handleBugScreenshotUpload(event) {
+            const files = Array.from(event.target.files);
+
+            files.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        bugReportScreenshots.push({
+                            name: file.name,
+                            data: e.target.result
+                        });
+                        updateBugScreenshotPreview();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function updateBugScreenshotPreview() {
+            const previewDiv = document.getElementById('bugScreenshotPreview');
+            previewDiv.innerHTML = bugReportScreenshots.map((screenshot, index) => `
+                <div class="bug-screenshot-item">
+                    <img src="${screenshot.data}" alt="${screenshot.name}">
+                    <button class="bug-screenshot-remove" onclick="removeBugScreenshot(${index})">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        function removeBugScreenshot(index) {
+            bugReportScreenshots.splice(index, 1);
+            updateBugScreenshotPreview();
+        }
+
+        async function submitBugReport() {
+            const description = document.getElementById('bugDescription').value.trim();
+
+            if (!description) {
+                alert('Please describe the bug before submitting.');
+                return;
+            }
+
+            const submitBtn = document.getElementById('bugSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+
+            try {
+                // Collect all relevant debugging data
+                const debugData = {
+                    description: description,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    screenResolution: `${window.screen.width}x${window.screen.height}`,
+                    windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                    url: window.location.href,
+                    state: {
+                        hasPhoto: !!state.photo,
+                        isCalibrated: state.isCalibrated,
+                        scale: state.scale,
+                        position: state.position,
+                        detectedObjects: state.detectedObjects?.length || 0,
+                        obstacles: state.obstacles?.length || 0,
+                        zones: state.zones ? Object.keys(state.zones) : []
+                    },
+                    localStorage: {
+                        hasOpenAIKey: !!localStorage.getItem('openaiApiKey'),
+                        hasCloudflareUrl: !!localStorage.getItem('cloudflareWorkerUrl')
+                    },
+                    screenshots: bugReportScreenshots
+                };
+
+                // Get console logs if available (last 50 lines)
+                // Note: This won't capture actual console logs in production, but we include the structure
+                debugData.consoleInfo = 'Console logs not available in production mode';
+
+                // Send bug report to Cloudflare Worker
+                const cloudflareUrl = localStorage.getItem('cloudflareWorkerUrl');
+                if (!cloudflareUrl) {
+                    alert('Cloudflare Worker URL not configured. Please set it up first.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Send Bug Report';
+                    return;
+                }
+
+                const response = await fetch(`${cloudflareUrl}/bug-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(debugData)
+                });
+
+                if (response.ok) {
+                    alert('Bug report sent successfully! Thank you for your feedback.');
+                    closeBugReportModal();
+                } else {
+                    const error = await response.text();
+                    console.error('Bug report submission failed:', error);
+                    alert('Failed to send bug report. Please try again or contact martinbibb@gmail.com directly.');
+                }
+            } catch (error) {
+                console.error('Bug report error:', error);
+                alert('Failed to send bug report. Please try again or contact martinbibb@gmail.com directly.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Bug Report';
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('bugReportModal');
+            if (event.target === modal) {
+                closeBugReportModal();
+            }
+        }
     </script>
+
+    <!-- Bug Report Button -->
+    <button class="bug-report-btn" onclick="openBugReportModal()">
+        Report Bug
+    </button>
+
+    <!-- Bug Report Modal -->
+    <div id="bugReportModal" class="bug-modal">
+        <div class="bug-modal-content">
+            <div class="bug-modal-header">
+                <h2>Report a Bug</h2>
+                <button class="bug-modal-close" onclick="closeBugReportModal()">&times;</button>
+            </div>
+
+            <div class="bug-form-group">
+                <label for="bugDescription">What went wrong?</label>
+                <textarea
+                    id="bugDescription"
+                    placeholder="Please describe the issue you encountered in detail..."
+                ></textarea>
+            </div>
+
+            <div class="bug-form-group">
+                <label>Screenshots (optional)</label>
+                <input
+                    type="file"
+                    id="bugScreenshotInput"
+                    accept="image/*"
+                    multiple
+                    onchange="handleBugScreenshotUpload(event)"
+                    style="display: none;"
+                >
+                <div class="bug-screenshot-upload" onclick="document.getElementById('bugScreenshotInput').click()">
+                    Click to add screenshots
+                </div>
+                <div id="bugScreenshotPreview" class="bug-screenshot-preview"></div>
+            </div>
+
+            <button id="bugSubmitBtn" class="bug-submit-btn" onclick="submitBugReport()">
+                Send Bug Report
+            </button>
+
+            <p style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
+                Your report will include browser info and app state to help with debugging.
+            </p>
+        </div>
+    </div>
 
 </body>
 </html>
