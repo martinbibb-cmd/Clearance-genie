@@ -4737,17 +4737,13 @@ Format the response in clear, professional language suitable for a gas engineer.
             updateBugScreenshotPreview();
         }
 
-        async function submitBugReport() {
+        function submitBugReport() {
             const description = document.getElementById('bugDescription').value.trim();
 
             if (!description) {
                 alert('Please describe the bug before submitting.');
                 return;
             }
-
-            const submitBtn = document.getElementById('bugSubmitBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Sending...';
 
             try {
                 // Collect all relevant debugging data
@@ -4771,46 +4767,68 @@ Format the response in clear, professional language suitable for a gas engineer.
                     localStorage: {
                         hasOpenAIKey: !!localStorage.getItem('openaiApiKey'),
                         hasCloudflareUrl: !!localStorage.getItem('cloudflareWorkerUrl')
-                    },
-                    screenshots: bugReportScreenshots
+                    }
                 };
 
-                // Get console logs if available (last 50 lines)
-                // Note: This won't capture actual console logs in production, but we include the structure
-                debugData.consoleInfo = 'Console logs not available in production mode';
+                // Format email body with all debug info
+                const emailBody = formatBugReportEmail(debugData);
 
-                // Send bug report to Cloudflare Worker
-                const cloudflareUrl = localStorage.getItem('cloudflareWorkerUrl');
-                if (!cloudflareUrl) {
-                    alert('Cloudflare Worker URL not configured. Please set it up first.');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Send Bug Report';
-                    return;
-                }
+                // Create mailto link
+                const recipient = 'martinbibb@gmail.com';
+                const subject = encodeURIComponent(`Clearance Genie Bug Report: ${description.substring(0, 50)}${description.length > 50 ? '...' : ''}`);
+                const body = encodeURIComponent(emailBody);
 
-                const response = await fetch(`${cloudflareUrl}/bug-report`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(debugData)
-                });
+                const mailtoLink = `mailto:${recipient}?subject=${subject}&body=${body}`;
 
-                if (response.ok) {
-                    alert('Bug report sent successfully! Thank you for your feedback.');
-                    closeBugReportModal();
-                } else {
-                    const error = await response.text();
-                    console.error('Bug report submission failed:', error);
-                    alert('Failed to send bug report. Please try again or contact martinbibb@gmail.com directly.');
-                }
+                // Open user's email client
+                window.location.href = mailtoLink;
+
+                // Show success message
+                alert('Your email client should open now. Please attach any screenshots manually if needed, then send the email.');
+                closeBugReportModal();
             } catch (error) {
                 console.error('Bug report error:', error);
-                alert('Failed to send bug report. Please try again or contact martinbibb@gmail.com directly.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Send Bug Report';
+                alert('Failed to prepare bug report. Please contact martinbibb@gmail.com directly.');
             }
+        }
+
+        function formatBugReportEmail(debugData) {
+            const lines = [];
+
+            lines.push('===== BUG REPORT =====');
+            lines.push('');
+            lines.push(`Submitted: ${debugData.timestamp}`);
+            lines.push('');
+            lines.push('--- USER DESCRIPTION ---');
+            lines.push(debugData.description);
+            lines.push('');
+            lines.push('');
+            lines.push('--- BROWSER INFORMATION ---');
+            lines.push(`User Agent: ${debugData.userAgent}`);
+            lines.push(`Platform: ${debugData.platform}`);
+            lines.push(`Screen Resolution: ${debugData.screenResolution}`);
+            lines.push(`Window Size: ${debugData.windowSize}`);
+            lines.push(`URL: ${debugData.url}`);
+            lines.push('');
+            lines.push('');
+            lines.push('--- APPLICATION STATE ---');
+            lines.push(`Has Photo: ${debugData.state.hasPhoto}`);
+            lines.push(`Is Calibrated: ${debugData.state.isCalibrated}`);
+            lines.push(`Scale: ${debugData.state.scale}`);
+            lines.push(`Position: ${JSON.stringify(debugData.state.position)}`);
+            lines.push(`Detected Objects: ${debugData.state.detectedObjects}`);
+            lines.push(`Obstacles: ${debugData.state.obstacles}`);
+            lines.push(`Zones: ${JSON.stringify(debugData.state.zones)}`);
+            lines.push('');
+            lines.push('');
+            lines.push('--- CONFIGURATION ---');
+            lines.push(`Has OpenAI Key: ${debugData.localStorage.hasOpenAIKey}`);
+            lines.push(`Has Cloudflare URL: ${debugData.localStorage.hasCloudflareUrl}`);
+            lines.push('');
+            lines.push('');
+            lines.push('===== END REPORT =====');
+
+            return lines.join('\n');
         }
 
         // Close modal when clicking outside
@@ -4864,7 +4882,7 @@ Format the response in clear, professional language suitable for a gas engineer.
             </button>
 
             <p style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
-                Your report will include browser info and app state to help with debugging.
+                This will open your email client with debugging info included. Please attach screenshots manually if needed.
             </p>
         </div>
     </div>
