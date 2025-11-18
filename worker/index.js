@@ -99,6 +99,15 @@ export default {
       });
     }
 
+    // Parse URL to determine endpoint
+    const url = new URL(request.url);
+
+    // Bug report endpoint
+    if (url.pathname === '/bug-report') {
+      return handleBugReport(request, corsHeaders);
+    }
+
+    // Main object detection endpoint (default)
     try {
       const data = await request.json();
       const {
@@ -172,6 +181,148 @@ export default {
     }
   }
 };
+
+async function handleBugReport(request, corsHeaders) {
+  try {
+    const bugData = await request.json();
+
+    // Send email via MailChannels
+    const emailSent = await sendBugReportEmail(bugData);
+
+    if (emailSent) {
+      return jsonResponse(
+        { success: true, message: "Bug report sent successfully" },
+        200,
+        corsHeaders
+      );
+    } else {
+      return jsonResponse(
+        { error: "Failed to send bug report email" },
+        500,
+        corsHeaders
+      );
+    }
+  } catch (error) {
+    console.error("Bug report error:", error);
+    return jsonResponse(
+      { error: "Failed to process bug report", message: error.message },
+      500,
+      corsHeaders
+    );
+  }
+}
+
+async function sendBugReportEmail(bugData) {
+  try {
+    // Format email content
+    const emailBody = formatBugReportEmail(bugData);
+
+    // Prepare attachments (screenshots)
+    const attachments = [];
+    if (bugData.screenshots && bugData.screenshots.length > 0) {
+      for (let i = 0; i < bugData.screenshots.length; i++) {
+        const screenshot = bugData.screenshots[i];
+        // Extract base64 content (remove data:image/...;base64, prefix)
+        const base64Match = screenshot.data.match(/^data:image\/\w+;base64,(.+)$/);
+        if (base64Match) {
+          attachments.push({
+            filename: screenshot.name || `screenshot-${i + 1}.png`,
+            content: base64Match[1],
+            type: screenshot.data.match(/^data:(image\/\w+);/)[1]
+          });
+        }
+      }
+    }
+
+    // Send via MailChannels API (free for Cloudflare Workers)
+    const emailPayload = {
+      personalizations: [
+        {
+          to: [{ email: "martinbibb@gmail.com", name: "Martin Bibb" }]
+        }
+      ],
+      from: {
+        email: "bug-reports@clearance-genie.app",
+        name: "Clearance Genie Bug Reporter"
+      },
+      subject: `Bug Report: ${bugData.description.substring(0, 50)}${bugData.description.length > 50 ? '...' : ''}`,
+      content: [
+        {
+          type: "text/plain",
+          value: emailBody
+        },
+        {
+          type: "text/html",
+          value: emailBody.replace(/\n/g, '<br>')
+        }
+      ]
+    };
+
+    // Add attachments if any
+    if (attachments.length > 0) {
+      emailPayload.attachments = attachments;
+    }
+
+    const response = await fetch("https://api.mailchannels.net/tx/v1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(emailPayload)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("MailChannels error:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Failed to send email:", error);
+    return false;
+  }
+}
+
+function formatBugReportEmail(bugData) {
+  const lines = [];
+
+  lines.push("===== BUG REPORT =====\n");
+  lines.push(`Submitted: ${bugData.timestamp}\n`);
+  lines.push("\n--- USER DESCRIPTION ---");
+  lines.push(bugData.description);
+  lines.push("\n\n--- BROWSER INFORMATION ---");
+  lines.push(`User Agent: ${bugData.userAgent}`);
+  lines.push(`Platform: ${bugData.platform}`);
+  lines.push(`Screen Resolution: ${bugData.screenResolution}`);
+  lines.push(`Window Size: ${bugData.windowSize}`);
+  lines.push(`URL: ${bugData.url}`);
+
+  lines.push("\n\n--- APPLICATION STATE ---");
+  lines.push(`Has Photo: ${bugData.state.hasPhoto}`);
+  lines.push(`Is Calibrated: ${bugData.state.isCalibrated}`);
+  lines.push(`Scale: ${bugData.state.scale}`);
+  lines.push(`Position: ${JSON.stringify(bugData.state.position)}`);
+  lines.push(`Detected Objects: ${bugData.state.detectedObjects}`);
+  lines.push(`Obstacles: ${bugData.state.obstacles}`);
+  lines.push(`Zones: ${JSON.stringify(bugData.state.zones)}`);
+
+  lines.push("\n\n--- CONFIGURATION ---");
+  lines.push(`Has OpenAI Key: ${bugData.localStorage.hasOpenAIKey}`);
+  lines.push(`Has Cloudflare URL: ${bugData.localStorage.hasCloudflareUrl}`);
+
+  lines.push("\n\n--- CONSOLE INFO ---");
+  lines.push(bugData.consoleInfo);
+
+  if (bugData.screenshots && bugData.screenshots.length > 0) {
+    lines.push(`\n\n--- SCREENSHOTS ---`);
+    lines.push(`${bugData.screenshots.length} screenshot(s) attached`);
+  }
+
+  lines.push("\n\n===== END REPORT =====");
+
+  return lines.join('\n');
+}
 
 async function detectObjectsWithGemini(imageBase64, imageWidth, imageHeight) {
   // Prepare image for Gemini (ensure proper format)
