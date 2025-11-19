@@ -1736,23 +1736,56 @@
             setTimeout(() => input.removeAttribute('capture'), 100);
         }
 
-        function handlePhotoUpload(e) {
+        async function handlePhotoUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = function(event) {
-                state.photoBase64 = event.target.result;
+                const originalDataUrl = event.target.result;
                 const img = new Image();
-                img.onload = function() {
-                    setupCanvas(img);
+                img.onload = async function() {
+                    const { image: processedImg, dataUrl } = await prepareImage(img, originalDataUrl);
+
+                    state.photoBase64 = dataUrl;
+                    state.photo = processedImg;
+
+                    setupCanvas(processedImg);
                     document.getElementById('canvasContainer').classList.add('active');
                     document.getElementById('calibrationCard').style.display = 'block';
                 };
-                img.src = event.target.result;
-                state.photo = img;
+                img.src = originalDataUrl;
             };
             reader.readAsDataURL(file);
+        }
+
+        // Reduce very large photos to prevent mobile browsers from crashing while processing
+        function prepareImage(img, fallbackDataUrl) {
+            return new Promise((resolve) => {
+                const MAX_DIMENSION = 2000;
+                const largestSide = Math.max(img.width, img.height);
+
+                // If the image is already within limits, reuse it as-is
+                if (largestSide <= MAX_DIMENSION) {
+                    resolve({ image: img, dataUrl: fallbackDataUrl });
+                    return;
+                }
+
+                const scale = MAX_DIMENSION / largestSide;
+                const targetWidth = Math.round(img.width * scale);
+                const targetHeight = Math.round(img.height * scale);
+
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = targetWidth;
+                tempCanvas.height = targetHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+                const scaledDataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+                const scaledImg = new Image();
+                scaledImg.onload = () => resolve({ image: scaledImg, dataUrl: scaledDataUrl });
+                scaledImg.src = scaledDataUrl;
+            });
         }
 
         function setupCanvas(img) {
@@ -1764,7 +1797,7 @@
             state.canvas = canvas;
             state.ctx = canvas.getContext('2d');
 
-            state.ctx.drawImage(img, 0, 0);
+            state.ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             const rect = canvas.getBoundingClientRect();
             state.canvasScale = canvas.width / rect.width;
