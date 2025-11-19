@@ -894,13 +894,35 @@
             <div id="obstacleMarkingSection" style="display: none;">
                 <div class="instructions">
                     <h3>Step 4: Mark Obstacles</h3>
-                    <p>Click a button below, then tap on the image to mark obstacles:</p>
+                    <p>Use auto-detection or manually mark obstacles on the image:</p>
                 </div>
 
                 <div class="status" id="markingStatus">
                     Select an obstacle type below to start marking
                 </div>
 
+                <!-- Auto-detection buttons -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #48bb78;">
+                    <h4 style="color: #2d3748; margin-bottom: 10px;">🤖 Auto-Detection</h4>
+                    <p style="font-size: 13px; color: #4a5568; margin-bottom: 10px;">Automatically detect objects in the image:</p>
+                    <div class="button-group">
+                        <button class="btn" onclick="runAutoDetectWindows()" style="background: #48bb78;">
+                            🪟 Auto-Detect Windows
+                        </button>
+                        <button class="btn" onclick="runAutoDetectCircularObjects()" style="background: #48bb78;">
+                            ⭕ Auto-Detect Circular Objects
+                        </button>
+                        <button class="btn" onclick="runAutoDetectAll()" style="background: #667eea;">
+                            🔍 Auto-Detect All
+                        </button>
+                    </div>
+                    <div class="status" id="autoDetectionStatus" style="display: none; margin-top: 10px;">
+                        Detection in progress...
+                    </div>
+                </div>
+
+                <!-- Manual marking buttons -->
+                <h4 style="color: #2d3748; margin-bottom: 10px;">✏️ Manual Marking</h4>
                 <div class="button-group" id="obstacleButtonsContainer">
                     <!-- Buttons will be populated dynamically based on flue type -->
                 </div>
@@ -2231,6 +2253,200 @@
             }
 
             return circles;
+        }
+
+        // Integration functions for auto-detection
+        function runAutoDetectWindows() {
+            const status = document.getElementById('autoDetectionStatus');
+            status.style.display = 'block';
+            status.classList.remove('warning');
+            status.classList.add('active');
+            status.textContent = '🔍 Detecting windows...';
+
+            try {
+                const windows = autoDetectWindows();
+
+                if (windows.length === 0) {
+                    status.classList.add('warning');
+                    status.textContent = '⚠️ No windows detected. Try adjusting lighting or manually mark obstacles.';
+                    return;
+                }
+
+                // Add detected windows to obstacles
+                windows.forEach((window, idx) => {
+                    const obstacle = {
+                        type: 'window',
+                        x: window.x,
+                        y: window.y,
+                        width: window.width,
+                        height: window.height,
+                        confidence: window.confidence,
+                        autoDetected: true
+                    };
+                    state.obstacles.push(obstacle);
+
+                    // Draw window on canvas
+                    state.ctx.strokeStyle = '#48bb78';
+                    state.ctx.lineWidth = 3;
+                    state.ctx.strokeRect(window.x, window.y, window.width, window.height);
+
+                    // Add label
+                    state.ctx.fillStyle = '#48bb78';
+                    state.ctx.font = 'bold 14px Arial';
+                    state.ctx.fillText(`Window ${idx + 1}`, window.x + 5, window.y + 20);
+                });
+
+                updateObstaclesList();
+                document.getElementById('calculateBtn').style.display = 'block';
+
+                status.classList.remove('warning');
+                status.textContent = `✅ Detected ${windows.length} window(s)! You can add more obstacles manually or calculate clearances.`;
+
+                console.log('Auto-detected windows:', windows);
+            } catch (error) {
+                console.error('Window detection error:', error);
+                status.classList.add('warning');
+                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+            }
+        }
+
+        function runAutoDetectCircularObjects() {
+            const status = document.getElementById('autoDetectionStatus');
+            status.style.display = 'block';
+            status.classList.remove('warning');
+            status.classList.add('active');
+            status.textContent = '🔍 Detecting circular objects (flues, vents, pipes)...';
+
+            try {
+                const circles = autoDetectCircularObjects();
+
+                if (circles.length === 0) {
+                    status.classList.add('warning');
+                    status.textContent = '⚠️ No circular objects detected. Try adjusting lighting or manually mark obstacles.';
+                    return;
+                }
+
+                // Add detected circular objects to obstacles
+                circles.forEach((circle, idx) => {
+                    const obstacle = {
+                        type: 'circular',
+                        x: circle.x,
+                        y: circle.y,
+                        width: circle.width,
+                        height: circle.height,
+                        centerX: circle.centerX,
+                        centerY: circle.centerY,
+                        radius: circle.radius,
+                        confidence: circle.confidence,
+                        autoDetected: true
+                    };
+                    state.obstacles.push(obstacle);
+
+                    // Draw circle on canvas
+                    state.ctx.strokeStyle = '#48bb78';
+                    state.ctx.lineWidth = 3;
+                    state.ctx.beginPath();
+                    state.ctx.arc(circle.centerX, circle.centerY, circle.radius, 0, Math.PI * 2);
+                    state.ctx.stroke();
+
+                    // Add label
+                    state.ctx.fillStyle = '#48bb78';
+                    state.ctx.font = 'bold 14px Arial';
+                    state.ctx.fillText(`Circle ${idx + 1}`, circle.centerX - 25, circle.centerY - circle.radius - 10);
+                });
+
+                updateObstaclesList();
+                document.getElementById('calculateBtn').style.display = 'block';
+
+                status.classList.remove('warning');
+                status.textContent = `✅ Detected ${circles.length} circular object(s)! You can add more obstacles manually or calculate clearances.`;
+
+                console.log('Auto-detected circular objects:', circles);
+            } catch (error) {
+                console.error('Circular object detection error:', error);
+                status.classList.add('warning');
+                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+            }
+        }
+
+        function runAutoDetectAll() {
+            const status = document.getElementById('autoDetectionStatus');
+            status.style.display = 'block';
+            status.classList.remove('warning');
+            status.classList.add('active');
+            status.textContent = '🔍 Running comprehensive auto-detection...';
+
+            try {
+                // Detect windows
+                const windows = autoDetectWindows();
+                windows.forEach((window, idx) => {
+                    const obstacle = {
+                        type: 'window',
+                        x: window.x,
+                        y: window.y,
+                        width: window.width,
+                        height: window.height,
+                        confidence: window.confidence,
+                        autoDetected: true
+                    };
+                    state.obstacles.push(obstacle);
+
+                    state.ctx.strokeStyle = '#4299e1';
+                    state.ctx.lineWidth = 3;
+                    state.ctx.strokeRect(window.x, window.y, window.width, window.height);
+
+                    state.ctx.fillStyle = '#4299e1';
+                    state.ctx.font = 'bold 14px Arial';
+                    state.ctx.fillText(`Window ${idx + 1}`, window.x + 5, window.y + 20);
+                });
+
+                // Detect circular objects
+                const circles = autoDetectCircularObjects();
+                circles.forEach((circle, idx) => {
+                    const obstacle = {
+                        type: 'circular',
+                        x: circle.x,
+                        y: circle.y,
+                        width: circle.width,
+                        height: circle.height,
+                        centerX: circle.centerX,
+                        centerY: circle.centerY,
+                        radius: circle.radius,
+                        confidence: circle.confidence,
+                        autoDetected: true
+                    };
+                    state.obstacles.push(obstacle);
+
+                    state.ctx.strokeStyle = '#ed8936';
+                    state.ctx.lineWidth = 3;
+                    state.ctx.beginPath();
+                    state.ctx.arc(circle.centerX, circle.centerY, circle.radius, 0, Math.PI * 2);
+                    state.ctx.stroke();
+
+                    state.ctx.fillStyle = '#ed8936';
+                    state.ctx.font = 'bold 14px Arial';
+                    state.ctx.fillText(`Circle ${idx + 1}`, circle.centerX - 25, circle.centerY - circle.radius - 10);
+                });
+
+                const totalDetected = windows.length + circles.length;
+
+                if (totalDetected === 0) {
+                    status.classList.add('warning');
+                    status.textContent = '⚠️ No objects detected. Try adjusting lighting or manually mark obstacles.';
+                } else {
+                    updateObstaclesList();
+                    document.getElementById('calculateBtn').style.display = 'block';
+
+                    status.classList.remove('warning');
+                    status.textContent = `✅ Detected ${windows.length} window(s) and ${circles.length} circular object(s)! You can add more obstacles manually or calculate clearances.`;
+                }
+
+                console.log('Auto-detection complete:', { windows, circles });
+            } catch (error) {
+                console.error('Auto-detection error:', error);
+                status.classList.add('warning');
+                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+            }
         }
 
         function handleCalibrationClick(e) {
