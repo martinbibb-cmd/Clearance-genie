@@ -6217,7 +6217,7 @@ Format the response in clear, professional language suitable for a gas engineer.
 
             try {
                 // Call the Cloudflare Worker (which calls Gemini)
-                const response = await fetch('https://clearancegenie.martinbibb.workers.dev', {
+                const response = await fetch('https://clearance-genie-worker.martinbibb.workers.dev', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
