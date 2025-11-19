@@ -904,7 +904,7 @@
                 <!-- Auto-detection buttons -->
                 <div style="margin-bottom: 20px; padding: 15px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #48bb78;">
                     <h4 style="color: #2d3748; margin-bottom: 10px;">🤖 Auto-Detection</h4>
-                    <p style="font-size: 13px; color: #4a5568; margin-bottom: 10px;">Automatically detect objects in the image:</p>
+                    <p style="font-size: 13px; color: #4a5568; margin-bottom: 10px;">Automatically detect objects in the image. Try <strong>Enhanced Auto-Detect</strong> to identify windows (opening/fixed), flues, pipes, and vents with user confirmation:</p>
                     <div class="button-group">
                         <button class="btn" onclick="runAutoDetectWindows()" style="background: #48bb78;">
                             🪟 Auto-Detect Windows
@@ -913,7 +913,10 @@
                             ⭕ Auto-Detect Circular Objects
                         </button>
                         <button class="btn" onclick="runAutoDetectAll()" style="background: #667eea;">
-                            🔍 Auto-Detect All
+                            🔍 Auto-Detect All (Basic)
+                        </button>
+                        <button class="btn" onclick="runAutoDetectAllEnhanced()" style="background: #805ad5;">
+                            ✨ Enhanced Auto-Detect (Windows, Flues, Pipes, Vents)
                         </button>
                     </div>
                     <div class="status" id="autoDetectionStatus" style="display: none; margin-top: 10px;">
@@ -2253,6 +2256,519 @@
             }
 
             return circles;
+        }
+
+        // Enhanced auto-detection with classification
+        function autoDetectWindowsEnhanced() {
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const edges = detectEdges(imageData);
+            const rectangles = findRectangularShapes(edges, state.canvas.width, state.canvas.height);
+
+            // Filter for window-like rectangles
+            const windows = rectangles.filter(rect => {
+                const width = rect.maxX - rect.minX;
+                const height = rect.maxY - rect.minY;
+                const area = width * height;
+                const aspectRatio = width / height;
+
+                return area > 5000 &&
+                       aspectRatio > 0.5 && aspectRatio < 3.0 &&
+                       rect.edgeStrength > 0.4;
+            });
+
+            return windows.map(w => {
+                const width = w.maxX - w.minX;
+                const height = w.maxY - w.minY;
+
+                // Classify as opening or fixed based on visual characteristics
+                // Opening windows typically have visible handles, hinges, or divisions
+                const windowType = classifyWindowType(imageData, w.minX, w.minY, width, height);
+
+                return {
+                    type: windowType,
+                    x: w.minX,
+                    y: w.minY,
+                    width: width,
+                    height: height,
+                    confidence: w.edgeStrength
+                };
+            });
+        }
+
+        function classifyWindowType(imageData, x, y, width, height) {
+            // Sample the window area to detect features
+            const data = imageData.data;
+            const imgWidth = imageData.width;
+
+            // Check for internal divisions (handles, hinges, mullions)
+            let internalEdgeCount = 0;
+            const sampleSize = 5;
+
+            // Sample internal area (avoid outer edges)
+            for (let dy = height * 0.2; dy < height * 0.8; dy += sampleSize) {
+                for (let dx = width * 0.2; dx < width * 0.8; dx += sampleSize) {
+                    const px = Math.floor(x + dx);
+                    const py = Math.floor(y + dy);
+                    if (px >= 0 && px < imgWidth && py >= 0 && py < imageData.height) {
+                        const idx = (py * imgWidth + px) * 4;
+                        const r = data[idx];
+                        const g = data[idx + 1];
+                        const b = data[idx + 2];
+
+                        // Look for dark elements (handles, hinges, frames)
+                        if (r < 80 && g < 80 && b < 80) {
+                            internalEdgeCount++;
+                        }
+                    }
+                }
+            }
+
+            const totalSamples = ((width * 0.6) / sampleSize) * ((height * 0.6) / sampleSize);
+            const internalFeatureRatio = internalEdgeCount / totalSamples;
+
+            // Opening windows tend to have more internal features
+            return internalFeatureRatio > 0.15 ? 'window-openable' : 'window-fixed';
+        }
+
+        function autoDetectCircularObjectsEnhanced() {
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const edges = detectEdges(imageData);
+            const circles = findCircularShapes(edges, state.canvas.width, state.canvas.height);
+
+            return circles.map(c => {
+                const diameter = c.radius * 2;
+                const diameterMM = diameter / (state.pxPerMM || 1);
+
+                // Classify circular objects by size and context
+                let objectType = 'circular';
+
+                if (diameterMM >= 80 && diameterMM <= 160) {
+                    // Typical flue terminal size (100-150mm)
+                    objectType = 'flue';
+                } else if (diameterMM >= 20 && diameterMM <= 80) {
+                    // Smaller vents or pipes
+                    objectType = classifySmallCircular(imageData, c, diameterMM);
+                } else if (diameterMM > 160) {
+                    // Larger objects might be downpipes or soil pipes
+                    objectType = 'downpipe';
+                }
+
+                return {
+                    type: objectType,
+                    x: c.centerX - c.radius,
+                    y: c.centerY - c.radius,
+                    width: c.radius * 2,
+                    height: c.radius * 2,
+                    centerX: c.centerX,
+                    centerY: c.centerY,
+                    radius: c.radius,
+                    confidence: c.confidence
+                };
+            });
+        }
+
+        function classifySmallCircular(imageData, circle, diameterMM) {
+            const data = imageData.data;
+            const width = imageData.width;
+
+            // Sample the center of the circular object
+            const cx = Math.floor(circle.centerX);
+            const cy = Math.floor(circle.centerY);
+
+            if (cx >= 0 && cx < width && cy >= 0 && cy < imageData.height) {
+                const idx = (cy * width + cx) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+
+                // Check color characteristics
+                const brightness = (r + g + b) / 3;
+
+                // White/light colored = likely air vent
+                if (brightness > 180) {
+                    return 'vent';
+                }
+                // Dark/metallic = likely pipe or flue
+                else if (brightness < 100) {
+                    return diameterMM > 40 ? 'downpipe' : 'vent';
+                }
+            }
+
+            return 'vent';
+        }
+
+        function autoDetectPipes() {
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const edges = detectEdges(imageData);
+            const pipes = findLinearShapes(edges, state.canvas.width, state.canvas.height);
+
+            return pipes;
+        }
+
+        function findLinearShapes(edges, width, height) {
+            const threshold = 30;
+            const pipes = [];
+
+            // Use Hough transform to detect lines
+            const lines = detectLines(edges, width, height, threshold);
+
+            // Filter for pipe-like lines (vertical or horizontal, with consistent width)
+            for (const line of lines) {
+                const angle = Math.abs(line.angle);
+                const isVertical = angle > 80 && angle < 100;
+                const isHorizontal = angle < 10 || angle > 170;
+
+                if (isVertical || isHorizontal) {
+                    const thickness = estimateLineThickness(edges, line, width, height);
+                    const thicknessMM = thickness / (state.pxPerMM || 1);
+
+                    // Pipes are typically 20-60mm diameter
+                    if (thicknessMM >= 15 && thicknessMM <= 80) {
+                        pipes.push({
+                            type: 'downpipe',
+                            x: line.x1,
+                            y: line.y1,
+                            x2: line.x2,
+                            y2: line.y2,
+                            width: thickness,
+                            height: Math.abs(line.y2 - line.y1),
+                            orientation: isVertical ? 'vertical' : 'horizontal',
+                            confidence: line.strength
+                        });
+                    }
+                }
+            }
+
+            return pipes;
+        }
+
+        function detectLines(edges, width, height, threshold) {
+            const lines = [];
+            const accumulator = {};
+
+            // Simplified Hough transform for line detection
+            for (let y = 0; y < height; y += 2) {
+                for (let x = 0; x < width; x += 2) {
+                    if (edges[y * width + x] > threshold) {
+                        // Vote for possible lines through this point
+                        for (let theta = 0; theta < 180; theta += 10) {
+                            const rad = (theta * Math.PI) / 180;
+                            const rho = Math.round(x * Math.cos(rad) + y * Math.sin(rad));
+                            const key = `${rho},${theta}`;
+                            accumulator[key] = (accumulator[key] || 0) + 1;
+                        }
+                    }
+                }
+            }
+
+            // Find strong lines
+            const candidates = [];
+            for (const [key, votes] of Object.entries(accumulator)) {
+                if (votes > 50) {
+                    const [rho, theta] = key.split(',').map(Number);
+                    candidates.push({ rho: parseInt(rho), theta, votes });
+                }
+            }
+
+            // Convert rho-theta to line segments
+            candidates.sort((a, b) => b.votes - a.votes);
+            for (let i = 0; i < Math.min(20, candidates.length); i++) {
+                const { rho, theta, votes } = candidates[i];
+                const rad = (theta * Math.PI) / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+
+                const x0 = cos * rho;
+                const y0 = sin * rho;
+
+                const x1 = Math.round(x0 + 1000 * (-sin));
+                const y1 = Math.round(y0 + 1000 * cos);
+                const x2 = Math.round(x0 - 1000 * (-sin));
+                const y2 = Math.round(y0 - 1000 * cos);
+
+                lines.push({
+                    x1: Math.max(0, Math.min(width, x1)),
+                    y1: Math.max(0, Math.min(height, y1)),
+                    x2: Math.max(0, Math.min(width, x2)),
+                    y2: Math.max(0, Math.min(height, y2)),
+                    angle: theta,
+                    strength: votes / 100
+                });
+            }
+
+            return lines;
+        }
+
+        function estimateLineThickness(edges, line, width, height) {
+            // Sample perpendicular to the line to estimate thickness
+            const angle = (line.angle * Math.PI) / 180;
+            const perpAngle = angle + Math.PI / 2;
+
+            const midX = (line.x1 + line.x2) / 2;
+            const midY = (line.y1 + line.y2) / 2;
+
+            let thickness = 0;
+            for (let dist = -50; dist <= 50; dist++) {
+                const x = Math.round(midX + dist * Math.cos(perpAngle));
+                const y = Math.round(midY + dist * Math.sin(perpAngle));
+
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    if (edges[y * width + x] > 30) {
+                        thickness++;
+                    }
+                }
+            }
+
+            return thickness;
+        }
+
+        function autoDetectVents() {
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const edges = detectEdges(imageData);
+            const rectangles = findRectangularShapes(edges, state.canvas.width, state.canvas.height);
+
+            // Filter for vent-like rectangles (smaller, specific aspect ratios)
+            const vents = rectangles.filter(rect => {
+                const width = rect.maxX - rect.minX;
+                const height = rect.maxY - rect.minY;
+                const area = width * height;
+                const aspectRatio = width / height;
+
+                const widthMM = width / (state.pxPerMM || 1);
+                const heightMM = height / (state.pxPerMM || 1);
+
+                // Vents are typically smaller than windows
+                // Common vent sizes: 100x100mm to 300x300mm, or rectangular air bricks
+                return area > 1000 && area < 10000 &&
+                       aspectRatio > 0.5 && aspectRatio < 4.0 &&
+                       widthMM >= 50 && widthMM <= 400 &&
+                       heightMM >= 50 && heightMM <= 400 &&
+                       rect.edgeStrength > 0.35;
+            });
+
+            return vents.map(v => ({
+                type: 'vent',
+                x: v.minX,
+                y: v.minY,
+                width: v.maxX - v.minX,
+                height: v.maxY - v.minY,
+                confidence: v.edgeStrength
+            }));
+        }
+
+        // Comprehensive auto-detection with confirmation UI
+        function runAutoDetectAllEnhanced() {
+            const status = document.getElementById('autoDetectionStatus');
+            status.style.display = 'block';
+            status.classList.remove('warning');
+            status.classList.add('active');
+            status.textContent = '🔍 Running enhanced auto-detection...';
+
+            try {
+                const detections = {
+                    windows: autoDetectWindowsEnhanced(),
+                    circular: autoDetectCircularObjectsEnhanced(),
+                    pipes: autoDetectPipes(),
+                    vents: autoDetectVents()
+                };
+
+                const totalDetected = detections.windows.length +
+                                     detections.circular.length +
+                                     detections.pipes.length +
+                                     detections.vents.length;
+
+                if (totalDetected === 0) {
+                    status.classList.add('warning');
+                    status.textContent = '⚠️ No objects detected. Try adjusting lighting or manually mark obstacles.';
+                    return;
+                }
+
+                // Show confirmation dialog
+                showDetectionConfirmation(detections);
+
+                status.classList.remove('warning');
+                status.textContent = `🔍 Detected ${totalDetected} object(s). Please review and confirm.`;
+
+                console.log('Enhanced auto-detection complete:', detections);
+            } catch (error) {
+                console.error('Enhanced auto-detection error:', error);
+                status.classList.add('warning');
+                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+            }
+        }
+
+        function showDetectionConfirmation(detections) {
+            // Create modal dialog for confirmation
+            const modal = document.createElement('div');
+            modal.id = 'detectionConfirmationModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            `;
+
+            let html = `
+                <h2 style="margin-top: 0; color: #2d3748;">Review Detected Objects</h2>
+                <p style="color: #4a5568; margin-bottom: 20px;">
+                    Please review the detected objects below. You can change their type or delete them before confirming.
+                </p>
+                <div id="detectionsList"></div>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="cancelDetectionConfirmation()" style="padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Cancel All
+                    </button>
+                    <button onclick="confirmDetections()" style="padding: 10px 20px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Confirm & Add
+                    </button>
+                </div>
+            `;
+
+            dialog.innerHTML = html;
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+
+            // Store detections in global scope for confirmation
+            window.pendingDetections = [];
+
+            // Populate list
+            const listContainer = document.getElementById('detectionsList');
+            let detectionIndex = 0;
+
+            const allDetections = [
+                ...detections.windows,
+                ...detections.circular,
+                ...detections.pipes,
+                ...detections.vents
+            ];
+
+            allDetections.forEach((det, idx) => {
+                window.pendingDetections.push(det);
+
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    padding: 15px;
+                    margin-bottom: 10px;
+                    background: #f7fafc;
+                    border-radius: 5px;
+                    border-left: 4px solid #4299e1;
+                `;
+
+                const typeOptions = [
+                    'window-openable', 'window-fixed', 'flue', 'vent',
+                    'downpipe', 'circular', 'corner', 'soffit'
+                ];
+
+                item.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>Object ${idx + 1}</strong><br>
+                            <small>Position: (${Math.round(det.x)}, ${Math.round(det.y)}),
+                            Size: ${Math.round(det.width)}×${Math.round(det.height)}px,
+                            Confidence: ${(det.confidence * 100).toFixed(1)}%</small>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="detType_${idx}" style="padding: 8px; border-radius: 4px; border: 1px solid #cbd5e0;">
+                                ${typeOptions.map(type =>
+                                    `<option value="${type}" ${type === det.type ? 'selected' : ''}>${type}</option>`
+                                ).join('')}
+                            </select>
+                            <button onclick="removeDetection(${idx})" style="padding: 8px 15px; background: #e53e3e; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        function removeDetection(index) {
+            if (window.pendingDetections) {
+                window.pendingDetections[index] = null;
+                document.getElementById('detectionsList').children[index].style.display = 'none';
+            }
+        }
+
+        function cancelDetectionConfirmation() {
+            const modal = document.getElementById('detectionConfirmationModal');
+            if (modal) {
+                modal.remove();
+            }
+            window.pendingDetections = null;
+
+            const status = document.getElementById('autoDetectionStatus');
+            status.textContent = '❌ Detection cancelled.';
+        }
+
+        function confirmDetections() {
+            if (!window.pendingDetections) return;
+
+            let addedCount = 0;
+
+            window.pendingDetections.forEach((det, idx) => {
+                if (det === null) return; // Removed detection
+
+                // Get updated type from dropdown
+                const typeSelect = document.getElementById(`detType_${idx}`);
+                if (typeSelect) {
+                    det.type = typeSelect.value;
+                }
+
+                const obstacle = {
+                    type: det.type,
+                    x: det.x,
+                    y: det.y,
+                    width: det.width,
+                    height: det.height,
+                    confidence: det.confidence,
+                    autoDetected: true
+                };
+
+                // Add circular object properties if applicable
+                if (det.centerX !== undefined) {
+                    obstacle.centerX = det.centerX;
+                    obstacle.centerY = det.centerY;
+                    obstacle.radius = det.radius;
+                }
+
+                state.obstacles.push(obstacle);
+                addedCount++;
+            });
+
+            // Close modal
+            const modal = document.getElementById('detectionConfirmationModal');
+            if (modal) {
+                modal.remove();
+            }
+            window.pendingDetections = null;
+
+            // Update UI
+            updateObstaclesList();
+            redrawCanvasWithObstacles();
+            document.getElementById('calculateBtn').style.display = 'block';
+
+            const status = document.getElementById('autoDetectionStatus');
+            status.classList.remove('warning');
+            status.textContent = `✅ Added ${addedCount} object(s)! You can add more obstacles manually or calculate clearances.`;
         }
 
         // Integration functions for auto-detection
