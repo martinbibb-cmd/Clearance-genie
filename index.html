@@ -1779,7 +1779,8 @@
             const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
             const data = imageData.data;
 
-            const brickPixels = [];
+            // Create a binary mask for brick-colored pixels
+            const brickMask = new Uint8Array(state.canvas.width * state.canvas.height);
 
             // Enhanced brick color detection for red/orange/brown bricks
             // Supports various brick types: red clay, orange, buff, brown
@@ -1815,35 +1816,20 @@
                                         redDominance > 15;
 
                     if (isRedBrick || isBuffBrick || isBrownBrick) {
-                        brickPixels.push({x, y});
+                        const maskIdx = y * state.canvas.width + x;
+                        brickMask[maskIdx] = 1;
                     }
                 }
             }
 
-            // Require more pixels for better detection reliability
-            if (brickPixels.length < 200) {
+            // Cluster brick pixels into individual regions using connected components
+            const brickRegions = findConnectedRegions(brickMask, state.canvas.width, state.canvas.height);
+
+            if (brickRegions.length === 0) {
                 status.classList.add('warning');
                 status.textContent = '❌ Could not find brick. Try manual calibration, adjust lighting, or check brick orientation.';
                 return;
             }
-
-            // Find bounding box of detected pixels
-            const minX = Math.min(...brickPixels.map(p => p.x));
-            const maxX = Math.max(...brickPixels.map(p => p.x));
-            const minY = Math.min(...brickPixels.map(p => p.y));
-            const maxY = Math.max(...brickPixels.map(p => p.y));
-
-            const width = maxX - minX;
-            const height = maxY - minY;
-
-            // Ensure minimum size to avoid false positives
-            if (width < 50 || height < 30) {
-                status.classList.add('warning');
-                status.textContent = '❌ Detected region too small. Move closer or try manual calibration.';
-                return;
-            }
-
-            const aspectRatio = width / height;
 
             // Get expected dimensions based on brick orientation
             let expectedWidth, expectedHeight, expectedRatio;
@@ -1862,50 +1848,389 @@
             }
             expectedRatio = expectedWidth / expectedHeight;
 
-            // Validate aspect ratio with reasonable tolerance
-            // Bricks are less uniform than cards, but should still be within tolerance
-            const ratioTolerance = 0.4;
-            if (Math.abs(aspectRatio - expectedRatio) > ratioTolerance) {
-                status.classList.add('warning');
-                status.textContent = `⚠️ Found brick-colored region (${aspectRatio.toFixed(2)}:1) but expected ${expectedRatio.toFixed(2)}:1 ratio. Try manual calibration or check brick orientation setting.`;
+            // Evaluate each region and score them
+            const candidates = brickRegions.map(region => {
+                const width = region.maxX - region.minX;
+                const height = region.maxY - region.minY;
+                const area = width * height;
+                const aspectRatio = width / height;
+                const pixelDensity = (region.pixelCount * 4) / area; // *4 because we skip pixels
 
-                // Draw red box around detected region for user feedback
+                // Calculate scores
+                const ratioError = Math.abs(aspectRatio - expectedRatio);
+                const ratioScore = Math.max(0, 1 - ratioError / expectedRatio);
+
+                // Prefer larger regions
+                const sizeScore = Math.min(1, area / 10000); // Normalize to typical brick size
+
+                // Prefer centered regions
+                const centerX = (region.minX + region.maxX) / 2;
+                const centerY = (region.minY + region.maxY) / 2;
+                const imageCenterX = state.canvas.width / 2;
+                const imageCenterY = state.canvas.height / 2;
+                const distFromCenter = Math.sqrt(
+                    Math.pow(centerX - imageCenterX, 2) +
+                    Math.pow(centerY - imageCenterY, 2)
+                );
+                const maxDist = Math.sqrt(
+                    Math.pow(state.canvas.width / 2, 2) +
+                    Math.pow(state.canvas.height / 2, 2)
+                );
+                const centerScore = Math.max(0, 1 - distFromCenter / maxDist);
+
+                // Prefer solid regions
+                const densityScore = Math.min(1, pixelDensity / 0.5);
+
+                // Weighted combined score
+                const totalScore = ratioScore * 0.5 + sizeScore * 0.2 + centerScore * 0.1 + densityScore * 0.2;
+
+                return {
+                    region,
+                    aspectRatio,
+                    ratioError,
+                    pixelDensity,
+                    totalScore,
+                    width,
+                    height
+                };
+            });
+
+            // Sort by score (best first)
+            candidates.sort((a, b) => b.totalScore - a.totalScore);
+
+            // Select best candidate with reasonable constraints
+            const ratioTolerance = 0.5;
+            const bestCandidate = candidates.find(c =>
+                c.ratioError < ratioTolerance &&
+                c.width >= 50 && c.height >= 30 &&
+                c.pixelDensity >= 0.25
+            );
+
+            if (!bestCandidate) {
+                status.classList.add('warning');
+
+                // Draw all detected regions in red for debugging
                 state.ctx.strokeStyle = '#f56565';
-                state.ctx.lineWidth = 3;
-                state.ctx.strokeRect(minX, minY, width, height);
+                state.ctx.lineWidth = 2;
+                candidates.slice(0, 5).forEach(c => {
+                    state.ctx.strokeRect(c.region.minX, c.region.minY, c.width, c.height);
+                });
+
+                if (candidates.length > 0) {
+                    const best = candidates[0];
+                    status.textContent = `⚠️ Found ${brickRegions.length} brick region(s) but none match expected ${expectedRatio.toFixed(2)}:1 ratio. Best: ${best.aspectRatio.toFixed(2)}:1. Try manual calibration or check brick orientation.`;
+                } else {
+                    status.textContent = '❌ Could not find suitable brick. Try manual calibration, adjust lighting, or check brick orientation.';
+                }
                 return;
             }
 
-            // Check pixel density within bounding box
-            const boxArea = width * height;
-            const pixelDensity = (brickPixels.length * 4) / boxArea; // *4 because we skip pixels
+            // Success - use best candidate
+            const brick = bestCandidate.region;
 
-            if (pixelDensity < 0.3) {
-                status.classList.add('warning');
-                status.textContent = '⚠️ Detected region is too sparse. Ensure brick fills frame and try again.';
-
-                state.ctx.strokeStyle = '#f56565';
-                state.ctx.lineWidth = 3;
-                state.ctx.strokeRect(minX, minY, width, height);
-                return;
-            }
-
-            // Success - set calibration points
             state.calibrationPoints = [
-                {x: minX, y: minY},
-                {x: maxX, y: minY},
-                {x: maxX, y: maxY},
-                {x: minX, y: maxY}
+                {x: brick.minX, y: brick.minY},
+                {x: brick.maxX, y: brick.minY},
+                {x: brick.maxX, y: brick.maxY},
+                {x: brick.minX, y: brick.maxY}
             ];
 
-            // Visual feedback - draw green box
+            // Visual feedback - draw green box around selected brick
             state.ctx.strokeStyle = '#48bb78';
             state.ctx.lineWidth = 3;
-            state.ctx.strokeRect(minX, minY, width, height);
+            state.ctx.strokeRect(brick.minX, brick.minY, bestCandidate.width, bestCandidate.height);
 
-            status.textContent = '✅ Brick detected! Calculating scale...';
+            // Draw light boxes around other candidates for context
+            if (candidates.length > 1) {
+                state.ctx.strokeStyle = 'rgba(72, 187, 120, 0.3)';
+                state.ctx.lineWidth = 1;
+                candidates.slice(1, Math.min(5, candidates.length)).forEach(c => {
+                    state.ctx.strokeRect(c.region.minX, c.region.minY, c.width, c.height);
+                });
+            }
+
+            const numDetected = brickRegions.length;
+            status.textContent = numDetected > 1
+                ? `✅ Detected ${numDetected} bricks, selected best match! Calculating scale...`
+                : '✅ Brick detected! Calculating scale...';
 
             setTimeout(() => calculateCalibration(), 500);
+        }
+
+        // Helper function to find connected regions of brick pixels
+        function findConnectedRegions(mask, width, height) {
+            const visited = new Uint8Array(width * height);
+            const regions = [];
+            const minRegionSize = 100; // Minimum pixels to be considered a region
+
+            function floodFill(startX, startY) {
+                const stack = [{x: startX, y: startY}];
+                const pixels = [];
+                let minX = startX, maxX = startX;
+                let minY = startY, maxY = startY;
+
+                while (stack.length > 0) {
+                    const {x, y} = stack.pop();
+                    const idx = y * width + x;
+
+                    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+                    if (visited[idx] || !mask[idx]) continue;
+
+                    visited[idx] = 1;
+                    pixels.push({x, y});
+
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+
+                    // Check 4-connected neighbors (skip diagonal for better separation)
+                    stack.push({x: x + 2, y});
+                    stack.push({x: x - 2, y});
+                    stack.push({x, y: y + 2});
+                    stack.push({x, y: y - 2});
+                }
+
+                return {pixels, minX, maxX, minY, maxY};
+            }
+
+            // Scan for unvisited brick pixels
+            for (let y = 0; y < height; y += 2) {
+                for (let x = 0; x < width; x += 2) {
+                    const idx = y * width + x;
+                    if (mask[idx] && !visited[idx]) {
+                        const region = floodFill(x, y);
+                        if (region.pixels.length >= minRegionSize) {
+                            regions.push({
+                                minX: region.minX,
+                                maxX: region.maxX,
+                                minY: region.minY,
+                                maxY: region.maxY,
+                                pixelCount: region.pixels.length
+                            });
+                        }
+                    }
+                }
+            }
+
+            return regions;
+        }
+
+        // Auto-detect windows using edge detection and rectangular shape analysis
+        function autoDetectWindows() {
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const edges = detectEdges(imageData);
+            const rectangles = findRectangularShapes(edges, state.canvas.width, state.canvas.height);
+
+            // Filter for window-like rectangles
+            const windows = rectangles.filter(rect => {
+                const width = rect.maxX - rect.minX;
+                const height = rect.maxY - rect.minY;
+                const area = width * height;
+                const aspectRatio = width / height;
+
+                // Windows are typically:
+                // - Medium to large size (not tiny)
+                // - Rectangular (aspect ratio between 0.5 and 3.0)
+                // - Have strong edges
+                return area > 5000 &&
+                       aspectRatio > 0.5 && aspectRatio < 3.0 &&
+                       rect.edgeStrength > 0.4;
+            });
+
+            return windows.map(w => ({
+                type: 'window',
+                x: w.minX,
+                y: w.minY,
+                width: w.maxX - w.minX,
+                height: w.maxY - w.minY,
+                confidence: w.edgeStrength
+            }));
+        }
+
+        // Auto-detect circular objects (flues, vents, etc) using Hough-like circle detection
+        function autoDetectCircularObjects() {
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const edges = detectEdges(imageData);
+            const circles = findCircularShapes(edges, state.canvas.width, state.canvas.height);
+
+            // Filter for flue-like circles
+            const circularObjects = circles.filter(circle => {
+                const diameter = circle.radius * 2;
+
+                // Typical flue diameter is 100-150mm, but could vary
+                // Filter for reasonable sizes
+                return diameter > 30 && diameter < 400 && circle.confidence > 0.5;
+            });
+
+            return circularObjects.map(c => ({
+                type: 'flue',
+                x: c.centerX - c.radius,
+                y: c.centerY - c.radius,
+                width: c.radius * 2,
+                height: c.radius * 2,
+                centerX: c.centerX,
+                centerY: c.centerY,
+                radius: c.radius,
+                confidence: c.confidence
+            }));
+        }
+
+        // Edge detection using Sobel operator
+        function detectEdges(imageData) {
+            const width = imageData.width;
+            const height = imageData.height;
+            const data = imageData.data;
+            const edges = new Float32Array(width * height);
+
+            // Sobel kernels
+            const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+            const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+            // Convert to grayscale and apply Sobel operator
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    let gx = 0, gy = 0;
+
+                    // Apply kernel
+                    for (let ky = -1; ky <= 1; ky++) {
+                        for (let kx = -1; kx <= 1; kx++) {
+                            const idx = ((y + ky) * width + (x + kx)) * 4;
+                            const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+
+                            gx += gray * sobelX[kernelIdx];
+                            gy += gray * sobelY[kernelIdx];
+                        }
+                    }
+
+                    const magnitude = Math.sqrt(gx * gx + gy * gy);
+                    edges[y * width + x] = magnitude;
+                }
+            }
+
+            return edges;
+        }
+
+        // Find rectangular shapes from edge map
+        function findRectangularShapes(edges, width, height) {
+            const threshold = 30;
+            const rectangles = [];
+
+            // Create binary edge map
+            const edgeMask = new Uint8Array(edges.length);
+            for (let i = 0; i < edges.length; i++) {
+                edgeMask[i] = edges[i] > threshold ? 1 : 0;
+            }
+
+            // Use connected components to find edge regions
+            const edgeRegions = findConnectedRegions(edgeMask, width, height);
+
+            // Analyze each region for rectangularity
+            for (const region of edgeRegions) {
+                const w = region.maxX - region.minX;
+                const h = region.maxY - region.minY;
+                const area = w * h;
+
+                if (area < 2000) continue;
+
+                // Calculate edge density along rectangle perimeter
+                const perimeter = 2 * (w + h);
+                const edgeCount = region.pixelCount;
+                const edgeStrength = Math.min(1, edgeCount / (perimeter * 0.3));
+
+                rectangles.push({
+                    minX: region.minX,
+                    maxX: region.maxX,
+                    minY: region.minY,
+                    maxY: region.maxY,
+                    edgeStrength
+                });
+            }
+
+            return rectangles;
+        }
+
+        // Find circular shapes using accumulator-based approach (simplified Hough)
+        function findCircularShapes(edges, width, height) {
+            const threshold = 30;
+            const circles = [];
+            const minRadius = 15;
+            const maxRadius = 200;
+            const radiusStep = 5;
+
+            // Sample edge points
+            const edgePoints = [];
+            for (let y = 0; y < height; y += 2) {
+                for (let x = 0; x < width; x += 2) {
+                    if (edges[y * width + x] > threshold) {
+                        edgePoints.push({x, y});
+                    }
+                }
+            }
+
+            if (edgePoints.length < 50) return circles;
+
+            // Accumulator for circle centers and radii
+            const accumulator = new Map();
+
+            // Vote for circle centers
+            for (let i = 0; i < edgePoints.length; i += 3) {
+                const p1 = edgePoints[i];
+
+                for (let r = minRadius; r < maxRadius; r += radiusStep) {
+                    // Try different angles
+                    for (let angle = 0; angle < 360; angle += 45) {
+                        const rad = (angle * Math.PI) / 180;
+                        const cx = Math.round(p1.x - r * Math.cos(rad));
+                        const cy = Math.round(p1.y - r * Math.sin(rad));
+
+                        if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+
+                        const key = `${cx},${cy},${r}`;
+                        accumulator.set(key, (accumulator.get(key) || 0) + 1);
+                    }
+                }
+            }
+
+            // Find peaks in accumulator
+            const candidates = [];
+            for (const [key, votes] of accumulator.entries()) {
+                const [cx, cy, r] = key.split(',').map(Number);
+                const expectedVotes = (2 * Math.PI * r) / 8; // Expected votes for a full circle
+
+                if (votes > expectedVotes * 0.3) {
+                    candidates.push({
+                        centerX: cx,
+                        centerY: cy,
+                        radius: r,
+                        votes,
+                        confidence: Math.min(1, votes / expectedVotes)
+                    });
+                }
+            }
+
+            // Non-maximum suppression - keep only best circles
+            candidates.sort((a, b) => b.votes - a.votes);
+
+            for (const candidate of candidates) {
+                // Check if this circle overlaps with existing circles
+                const overlaps = circles.some(c => {
+                    const dist = Math.sqrt(
+                        Math.pow(c.centerX - candidate.centerX, 2) +
+                        Math.pow(c.centerY - candidate.centerY, 2)
+                    );
+                    return dist < (c.radius + candidate.radius) / 2;
+                });
+
+                if (!overlaps) {
+                    circles.push(candidate);
+                }
+
+                if (circles.length >= 10) break;
+            }
+
+            return circles;
         }
 
         function handleCalibrationClick(e) {
