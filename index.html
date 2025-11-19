@@ -524,7 +524,7 @@
 
         <div class="card">
             <h2>Step 1: Load Photo</h2>
-            <p style="margin: 10px 0; color: #666;">Take or upload a photo with your blue calibration card visible</p>
+            <p style="margin: 10px 0; color: #666;">Take or upload a photo with a calibration reference (blue card or standard brick)</p>
             
             <input type="file" id="photoInput" accept="image/*">
             <div class="button-group">
@@ -539,9 +539,9 @@
             <div class="instructions">
                 <h3>📋 How to take the photo:</h3>
                 <ol>
-                    <li>Place your blue calibration card on the wall at the proposed flue/boiler height</li>
-                    <li>Stand back and take a clear photo that includes the card and surrounding area</li>
-                    <li>Make sure the card is visible and not blurry</li>
+                    <li>Place your blue calibration card <strong>OR</strong> a standard brick on the wall at the proposed flue/boiler height</li>
+                    <li>Stand back and take a clear photo that includes the reference object and surrounding area</li>
+                    <li>Make sure the reference object is clearly visible and not blurry</li>
                     <li>Include any windows, vents, corners, or obstacles in the frame</li>
                 </ol>
             </div>
@@ -570,14 +570,36 @@
 
         <div class="card" id="calibrationCard" style="display: none;">
             <h2>Step 2: Calibrate Scale</h2>
-            
+
+            <div style="margin-bottom: 15px;">
+                <h3 style="margin-bottom: 10px;">Calibration Reference Object:</h3>
+                <div class="button-group">
+                    <button class="btn" id="cardModeBtn" onclick="setCalibrationMode('card')" style="background: #667eea;">
+                        💳 Blue Card
+                    </button>
+                    <button class="btn btn-secondary" id="brickModeBtn" onclick="setCalibrationMode('brick')">
+                        🧱 Standard Brick
+                    </button>
+                </div>
+            </div>
+
+            <div id="brickOrientationSelector" style="display: none; margin-bottom: 15px;">
+                <h4 style="margin-bottom: 8px;">Brick Face Visible:</h4>
+                <select id="brickOrientationSelect" onchange="setBrickOrientation(this.value)" style="width: 100%; padding: 10px; font-size: 14px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                    <option value="length">Stretcher (215mm × 65mm)</option>
+                    <option value="width">Header (102.5mm × 65mm)</option>
+                    <option value="height">Bed (215mm × 102.5mm)</option>
+                </select>
+                <p style="margin-top: 5px; font-size: 12px; color: #666;">Select which face of the brick is visible in the photo</p>
+            </div>
+
             <div class="status" id="tapStatus">
                 Choose calibration method below
             </div>
 
             <div class="button-group">
-                <button class="btn btn-secondary" onclick="autoDetectCard()">
-                    🤖 Auto-Detect Card
+                <button class="btn btn-secondary" id="autoDetectBtn" onclick="autoDetectReference()">
+                    🤖 Auto-Detect <span id="autoDetectLabel">Card</span>
                 </button>
                 <button class="btn" onclick="startManualCalibration()">
                     👆 Manual 4-Point
@@ -594,8 +616,8 @@
             <div class="calibration-info" id="calibrationInfo">
                 <h4>✅ Calibration Complete!</h4>
                 <p>Scale: <span id="scaleDisplay">-</span> pixels/mm</p>
-                <p>Card Width: <span id="cardWidthDisplay">-</span> pixels (should be ~85.6mm)</p>
-                <p>Card Height: <span id="cardHeightDisplay">-</span> pixels (should be ~53.98mm)</p>
+                <p id="refDim1Label">Width: <span id="refDim1Display">-</span> pixels</p>
+                <p id="refDim2Label">Height: <span id="refDim2Display">-</span> pixels</p>
                 <p>Accuracy: <span id="accuracyDisplay">-</span></p>
                 <p>Plumb Line: <span id="plumbDisplay">-</span></p>
                 <button class="btn" onclick="resetCalibration()" style="margin-top: 10px;">
@@ -972,6 +994,11 @@
         const CARD_WIDTH_MM = 85.6;
         const CARD_HEIGHT_MM = 53.98;
 
+        // UK Standard Brick Dimensions (in mm)
+        const BRICK_LENGTH_MM = 215;    // Stretcher face (longest)
+        const BRICK_WIDTH_MM = 102.5;   // Header face
+        const BRICK_HEIGHT_MM = 65;     // Bed (thickness)
+
         // Brand-specific clearance rules (in mm from obstruction edge to flue/boiler center)
         // These are fallback/flue rules - boiler rules will be loaded from CSV
         const CLEARANCE_RULES = {
@@ -1130,6 +1157,8 @@
             canvasScale: 1,
             mode: null,
             flueType: null, // 'horizontal' or 'vertical'
+            calibrationMode: 'card', // 'card' or 'brick'
+            brickOrientation: 'length', // 'length', 'width', or 'height'
             obstacles: [], // Manual obstacles marked by user
             markingMode: null, // Current obstacle type being marked
             markingPoints: [], // Points collected during marking
@@ -1619,18 +1648,65 @@
             document.getElementById('zoomControls').style.display = 'block';
         }
 
+        function setCalibrationMode(mode) {
+            state.calibrationMode = mode;
+
+            // Update button styles
+            const cardBtn = document.getElementById('cardModeBtn');
+            const brickBtn = document.getElementById('brickModeBtn');
+
+            if (mode === 'card') {
+                cardBtn.style.background = '#667eea';
+                cardBtn.classList.remove('btn-secondary');
+                brickBtn.style.background = '';
+                brickBtn.classList.add('btn-secondary');
+                document.getElementById('brickOrientationSelector').style.display = 'none';
+                document.getElementById('autoDetectLabel').textContent = 'Card';
+            } else {
+                brickBtn.style.background = '#667eea';
+                brickBtn.classList.remove('btn-secondary');
+                cardBtn.style.background = '';
+                cardBtn.classList.add('btn-secondary');
+                document.getElementById('brickOrientationSelector').style.display = 'block';
+                document.getElementById('autoDetectLabel').textContent = 'Brick';
+            }
+
+            // Reset calibration if already calibrated
+            if (state.pxPerMM) {
+                resetCalibration();
+            }
+        }
+
+        function setBrickOrientation(orientation) {
+            state.brickOrientation = orientation;
+
+            // Reset calibration if already calibrated
+            if (state.pxPerMM) {
+                resetCalibration();
+            }
+        }
+
+        function autoDetectReference() {
+            if (state.calibrationMode === 'card') {
+                autoDetectCard();
+            } else {
+                autoDetectBrick();
+            }
+        }
+
         function startManualCalibration() {
             state.isCalibrating = true;
             state.calibrationPoints = [];
             updatePointsDisplay();
-            
+
             document.getElementById('pointsDisplay').style.display = 'block';
-            
+
+            const refObject = state.calibrationMode === 'brick' ? 'brick' : 'card';
             const status = document.getElementById('tapStatus');
             status.classList.add('active');
             status.classList.remove('warning');
-            status.textContent = 'Tap corner 1/4: Top-Left corner of card';
-            
+            status.textContent = `Tap corner 1/4: Top-Left corner of ${refObject}`;
+
             state.canvas.addEventListener('click', handleCalibrationClick);
         }
 
@@ -1691,7 +1767,90 @@
             ];
             
             status.textContent = '✅ Card detected! Calculating scale...';
-            
+
+            setTimeout(() => calculateCalibration(), 500);
+        }
+
+        function autoDetectBrick() {
+            const status = document.getElementById('tapStatus');
+            status.classList.add('active');
+            status.textContent = '🔍 Searching for brick...';
+
+            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            const data = imageData.data;
+
+            const brickPixels = [];
+
+            // Detect red/orange/brown brick colors
+            // Bricks typically have: R > G > B, with R being dominant
+            for (let y = 0; y < state.canvas.height; y += 2) {
+                for (let x = 0; x < state.canvas.width; x += 2) {
+                    const i = (y * state.canvas.width + x) * 4;
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    // Red brick detection: r > g, r > b, and r is reasonably high
+                    // Also check that it's not too bright (white) or too dark (shadow)
+                    if (r > g + 20 && r > b + 30 && r > 80 && r < 220 &&
+                        g > 30 && g < 180 && b > 20 && b < 150) {
+                        brickPixels.push({x, y});
+                    }
+                }
+            }
+
+            if (brickPixels.length < 100) {
+                status.classList.add('warning');
+                status.textContent = '❌ Could not find brick. Try manual calibration or adjust lighting.';
+                return;
+            }
+
+            const minX = Math.min(...brickPixels.map(p => p.x));
+            const maxX = Math.max(...brickPixels.map(p => p.x));
+            const minY = Math.min(...brickPixels.map(p => p.y));
+            const maxY = Math.max(...brickPixels.map(p => p.y));
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const aspectRatio = width / height;
+
+            // Get expected dimensions based on brick orientation
+            let expectedWidth, expectedHeight, expectedRatio;
+            if (state.brickOrientation === 'length') {
+                // Stretcher: 215mm × 65mm
+                expectedWidth = BRICK_LENGTH_MM;
+                expectedHeight = BRICK_HEIGHT_MM;
+            } else if (state.brickOrientation === 'width') {
+                // Header: 102.5mm × 65mm
+                expectedWidth = BRICK_WIDTH_MM;
+                expectedHeight = BRICK_HEIGHT_MM;
+            } else {
+                // Bed: 215mm × 102.5mm
+                expectedWidth = BRICK_LENGTH_MM;
+                expectedHeight = BRICK_WIDTH_MM;
+            }
+            expectedRatio = expectedWidth / expectedHeight;
+
+            // More lenient aspect ratio check for bricks (they're less uniform than cards)
+            if (Math.abs(aspectRatio - expectedRatio) > 0.5) {
+                status.classList.add('warning');
+                status.textContent = `⚠️ Found brick-colored region but shape doesn't match expected orientation (ratio: ${aspectRatio.toFixed(2)} vs ${expectedRatio.toFixed(2)}). Try manual calibration or check brick orientation setting.`;
+
+                state.ctx.strokeStyle = '#f56565';
+                state.ctx.lineWidth = 3;
+                state.ctx.strokeRect(minX, minY, width, height);
+                return;
+            }
+
+            state.calibrationPoints = [
+                {x: minX, y: minY},
+                {x: maxX, y: minY},
+                {x: maxX, y: maxY},
+                {x: minX, y: maxY}
+            ];
+
+            status.textContent = '✅ Brick detected! Calculating scale...';
+
             setTimeout(() => calculateCalibration(), 500);
         }
 
@@ -1716,12 +1875,13 @@
             state.ctx.fillText(state.calibrationPoints.length, x, y);
             
             updatePointsDisplay();
-            
+
+            const refObject = state.calibrationMode === 'brick' ? 'brick' : 'card';
             const status = document.getElementById('tapStatus');
             const corners = ['Top-Left', 'Top-Right', 'Bottom-Right', 'Bottom-Left'];
-            
+
             if (state.calibrationPoints.length < 4) {
-                status.textContent = `Tap corner ${state.calibrationPoints.length + 1}/4: ${corners[state.calibrationPoints.length]} corner of card`;
+                status.textContent = `Tap corner ${state.calibrationPoints.length + 1}/4: ${corners[state.calibrationPoints.length]} corner of ${refObject}`;
             } else {
                 calculateCalibration();
             }
@@ -1737,9 +1897,35 @@
             
             const avgWidthPx = (topWidth + bottomWidth) / 2;
             const avgHeightPx = (leftHeight + rightHeight) / 2;
-            
-            const pxPerMMWidth = avgWidthPx / CARD_WIDTH_MM;
-            const pxPerMMHeight = avgHeightPx / CARD_HEIGHT_MM;
+
+            // Get reference dimensions based on calibration mode
+            let refWidthMM, refHeightMM, refName;
+            if (state.calibrationMode === 'brick') {
+                // Get brick dimensions based on orientation
+                if (state.brickOrientation === 'length') {
+                    // Stretcher: 215mm × 65mm
+                    refWidthMM = BRICK_LENGTH_MM;
+                    refHeightMM = BRICK_HEIGHT_MM;
+                    refName = 'Brick (Stretcher)';
+                } else if (state.brickOrientation === 'width') {
+                    // Header: 102.5mm × 65mm
+                    refWidthMM = BRICK_WIDTH_MM;
+                    refHeightMM = BRICK_HEIGHT_MM;
+                    refName = 'Brick (Header)';
+                } else {
+                    // Bed: 215mm × 102.5mm
+                    refWidthMM = BRICK_LENGTH_MM;
+                    refHeightMM = BRICK_WIDTH_MM;
+                    refName = 'Brick (Bed)';
+                }
+            } else {
+                refWidthMM = CARD_WIDTH_MM;
+                refHeightMM = CARD_HEIGHT_MM;
+                refName = 'Card';
+            }
+
+            const pxPerMMWidth = avgWidthPx / refWidthMM;
+            const pxPerMMHeight = avgHeightPx / refHeightMM;
             
             state.pxPerMM = (pxPerMMWidth + pxPerMMHeight) / 2;
 
@@ -1758,11 +1944,11 @@
             let plumbAccurate = true;
 
             if (avgHorizontalAngle < 3 && avgVerticalAngle < 3) {
-                plumbRating = '✅ Excellent - Card is level and plumb';
+                plumbRating = `✅ Excellent - ${refName} is level and plumb`;
             } else if (avgHorizontalAngle < 5 && avgVerticalAngle < 5) {
                 plumbRating = '⚠️ Good - Slight tilt detected';
             } else {
-                plumbRating = '❌ Card not level - Use plumb line for accuracy';
+                plumbRating = `❌ ${refName} not level - Use plumb line for accuracy`;
                 plumbAccurate = false;
             }
 
@@ -1808,8 +1994,11 @@
             const info = document.getElementById('calibrationInfo');
             info.classList.add('active');
             document.getElementById('scaleDisplay').textContent = state.pxPerMM.toFixed(2);
-            document.getElementById('cardWidthDisplay').textContent = avgWidthPx.toFixed(1);
-            document.getElementById('cardHeightDisplay').textContent = avgHeightPx.toFixed(1);
+
+            // Update dimension labels based on calibration mode
+            document.getElementById('refDim1Label').innerHTML = `Width: <span id="refDim1Display">${avgWidthPx.toFixed(1)}</span> pixels (should be ~${refWidthMM}mm)`;
+            document.getElementById('refDim2Label').innerHTML = `Height: <span id="refDim2Display">${avgHeightPx.toFixed(1)}</span> pixels (should be ~${refHeightMM}mm)`;
+
             document.getElementById('accuracyDisplay').textContent = accuracyRating;
             document.getElementById('plumbDisplay').textContent = plumbRating;
 
