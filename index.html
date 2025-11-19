@@ -2150,7 +2150,19 @@
 
         // Auto-detect windows using edge detection and rectangular shape analysis
         function autoDetectWindows() {
-            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            // Validate canvas context
+            if (!state.ctx || !state.canvas) {
+                throw new Error('Canvas not initialized');
+            }
+
+            let imageData;
+            try {
+                imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            } catch (error) {
+                console.error('Failed to get image data:', error);
+                throw new Error('Unable to access image data. This may occur on mobile devices with memory constraints.');
+            }
+
             const edges = detectEdges(imageData);
             const rectangles = findRectangularShapes(edges, state.canvas.width, state.canvas.height);
 
@@ -2182,7 +2194,19 @@
 
         // Auto-detect circular objects (flues, vents, etc) using Hough-like circle detection
         function autoDetectCircularObjects() {
-            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            // Validate canvas context
+            if (!state.ctx || !state.canvas) {
+                throw new Error('Canvas not initialized');
+            }
+
+            let imageData;
+            try {
+                imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            } catch (error) {
+                console.error('Failed to get image data:', error);
+                throw new Error('Unable to access image data. This may occur on mobile devices with memory constraints.');
+            }
+
             const edges = detectEdges(imageData);
             const circles = findCircularShapes(edges, state.canvas.width, state.canvas.height);
 
@@ -2213,7 +2237,21 @@
             const width = imageData.width;
             const height = imageData.height;
             const data = imageData.data;
-            const edges = new Float32Array(width * height);
+
+            // Check for large images on mobile devices
+            const pixelCount = width * height;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile && pixelCount > 4000000) { // > ~2000x2000
+                console.warn('Large image on mobile device may cause performance issues');
+            }
+
+            let edges;
+            try {
+                edges = new Float32Array(width * height);
+            } catch (error) {
+                console.error('Failed to allocate memory for edge detection:', error);
+                throw new Error('Insufficient memory for image processing. Try using a smaller image.');
+            }
 
             // Sobel kernels
             const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
@@ -2367,7 +2405,19 @@
 
         // Enhanced auto-detection with classification
         function autoDetectWindowsEnhanced() {
-            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            // Validate canvas context
+            if (!state.ctx || !state.canvas) {
+                throw new Error('Canvas not initialized');
+            }
+
+            let imageData;
+            try {
+                imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            } catch (error) {
+                console.error('Failed to get image data:', error);
+                throw new Error('Unable to access image data. This may occur on mobile devices with memory constraints.');
+            }
+
             const edges = detectEdges(imageData);
             const rectangles = findRectangularShapes(edges, state.canvas.width, state.canvas.height);
 
@@ -2438,7 +2488,19 @@
         }
 
         function autoDetectCircularObjectsEnhanced() {
-            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            // Validate canvas context
+            if (!state.ctx || !state.canvas) {
+                throw new Error('Canvas not initialized');
+            }
+
+            let imageData;
+            try {
+                imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            } catch (error) {
+                console.error('Failed to get image data:', error);
+                throw new Error('Unable to access image data. This may occur on mobile devices with memory constraints.');
+            }
+
             const edges = detectEdges(imageData);
             const circles = findCircularShapes(edges, state.canvas.width, state.canvas.height);
 
@@ -2505,7 +2567,19 @@
         }
 
         function autoDetectPipes() {
-            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            // Validate canvas context
+            if (!state.ctx || !state.canvas) {
+                throw new Error('Canvas not initialized');
+            }
+
+            let imageData;
+            try {
+                imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            } catch (error) {
+                console.error('Failed to get image data:', error);
+                throw new Error('Unable to access image data. This may occur on mobile devices with memory constraints.');
+            }
+
             const edges = detectEdges(imageData);
             const pipes = findLinearShapes(edges, state.canvas.width, state.canvas.height);
 
@@ -2630,7 +2704,19 @@
         }
 
         function autoDetectVents() {
-            const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            // Validate canvas context
+            if (!state.ctx || !state.canvas) {
+                throw new Error('Canvas not initialized');
+            }
+
+            let imageData;
+            try {
+                imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
+            } catch (error) {
+                console.error('Failed to get image data:', error);
+                throw new Error('Unable to access image data. This may occur on mobile devices with memory constraints.');
+            }
+
             const edges = detectEdges(imageData);
             const rectangles = findRectangularShapes(edges, state.canvas.width, state.canvas.height);
 
@@ -2700,7 +2786,12 @@
             } catch (error) {
                 console.error('Enhanced auto-detection error:', error);
                 status.classList.add('warning');
-                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    status.textContent = '❌ Detection failed on mobile device. Try using a smaller image or mark obstacles manually.';
+                } else {
+                    status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                }
             }
         }
 
@@ -2929,7 +3020,12 @@
             } catch (error) {
                 console.error('Window detection error:', error);
                 status.classList.add('warning');
-                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    status.textContent = '❌ Detection failed on mobile device. Try using a smaller image or mark obstacles manually.';
+                } else {
+                    status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                }
             }
         }
 
@@ -2988,7 +3084,12 @@
             } catch (error) {
                 console.error('Circular object detection error:', error);
                 status.classList.add('warning');
-                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    status.textContent = '❌ Detection failed on mobile device. Try using a smaller image or mark obstacles manually.';
+                } else {
+                    status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                }
             }
         }
 
@@ -3068,7 +3169,12 @@
             } catch (error) {
                 console.error('Auto-detection error:', error);
                 status.classList.add('warning');
-                status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    status.textContent = '❌ Detection failed on mobile device. Try using a smaller image or mark obstacles manually.';
+                } else {
+                    status.textContent = '❌ Detection failed. Please mark obstacles manually.';
+                }
             }
         }
 
