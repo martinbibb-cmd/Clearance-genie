@@ -546,6 +546,12 @@
     <div class="container">
         <h1>🔥 Clearance Genie</h1>
 
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="window.location.reload()" style="background: #48bb78; padding: 10px 20px; font-size: 14px;">
+                🔄 Force Refresh
+            </button>
+        </div>
+
         <div class="card">
             <h2>Step 1: Load Photo</h2>
             <p style="margin: 10px 0; color: #666;">Take or upload a photo with a calibration reference (blue card or standard brick)</p>
@@ -937,16 +943,16 @@
                     <h4 style="color: #2d3748; margin-bottom: 10px;">🤖 Auto-Detection</h4>
                     <p style="font-size: 13px; color: #4a5568; margin-bottom: 10px;">Automatically detect objects in the image. Try <strong>Enhanced Auto-Detect</strong> to identify windows (opening/fixed), flues, pipes, and vents with user confirmation:</p>
                     <div class="button-group">
-                        <button class="btn" onclick="runAutoDetectWindows()" style="background: #48bb78;">
+                        <button type="button" class="btn" onclick="runAutoDetectWindows()" style="background: #48bb78;">
                             🪟 Auto-Detect Windows
                         </button>
-                        <button class="btn" onclick="runAutoDetectCircularObjects()" style="background: #48bb78;">
+                        <button type="button" class="btn" onclick="runAutoDetectCircularObjects()" style="background: #48bb78;">
                             ⭕ Auto-Detect Circular Objects
                         </button>
-                        <button class="btn" onclick="runAutoDetectAll()" style="background: #667eea;">
+                        <button type="button" class="btn" onclick="runAutoDetectAll()" style="background: #667eea;">
                             🔍 Auto-Detect All (Basic)
                         </button>
-                        <button class="btn" onclick="runAutoDetectAllEnhanced()" style="background: #805ad5;">
+                        <button type="button" class="btn" onclick="runAutoDetectAllEnhanced()" style="background: #805ad5;">
                             ✨ Enhanced Auto-Detect (Windows, Flues, Pipes, Vents)
                         </button>
                     </div>
@@ -985,7 +991,7 @@
                         </button>
                     </div>
 
-                    <button class="btn" onclick="generateWrittenGuidance()" style="margin-top: 10px;">
+                    <button type="button" class="btn" onclick="generateWrittenGuidance()" style="margin-top: 10px;">
                         📝 Generate Written Guidance (AI)
                     </button>
 
@@ -5910,7 +5916,120 @@
             link.click();
         }
 
+        function showApiKeyModal(callback) {
+            // Create modal for API key input
+            const modal = document.createElement('div');
+            modal.id = 'apiKeyModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 500px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            `;
+
+            dialog.innerHTML = `
+                <h2 style="margin-top: 0; color: #667eea;">🔑 OpenAI API Key Required</h2>
+                <p style="color: #4a5568; margin-bottom: 20px;">
+                    Please enter your OpenAI API key to generate AI-powered installation guidance.
+                </p>
+                <input type="password" id="apiKeyInput" placeholder="sk-..." style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 15px; font-family: monospace;">
+                <label style="display: block; margin-bottom: 20px; color: #4a5568;">
+                    <input type="checkbox" id="saveApiKey" checked style="margin-right: 5px;">
+                    Save API key for future use
+                </label>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="closeApiKeyModal()" style="padding: 10px 20px; background: #e2e8f0; color: #2d3748; border: none; border-radius: 5px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button onclick="submitApiKey()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Submit
+                    </button>
+                </div>
+            `;
+
+            modal.appendChild(dialog);
+            document.body.appendChild(modal);
+
+            // Store callback for later
+            window.apiKeyCallback = callback;
+
+            // Focus on input
+            setTimeout(() => document.getElementById('apiKeyInput')?.focus(), 100);
+
+            // Allow Enter key to submit
+            document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    submitApiKey();
+                }
+            });
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            if (modal) {
+                modal.remove();
+            }
+            window.apiKeyCallback = null;
+        }
+
+        function submitApiKey() {
+            const apiKey = document.getElementById('apiKeyInput')?.value;
+            const saveKey = document.getElementById('saveApiKey')?.checked;
+
+            if (!apiKey || !apiKey.trim()) {
+                alert('Please enter a valid API key');
+                return;
+            }
+
+            if (saveKey) {
+                localStorage.setItem('openai_api_key', apiKey.trim());
+            }
+
+            closeApiKeyModal();
+
+            if (window.apiKeyCallback) {
+                window.apiKeyCallback(apiKey.trim());
+            }
+        }
+
         async function generateWrittenGuidance() {
+            const section = document.getElementById('writtenGuidanceSection');
+            const content = document.getElementById('writtenGuidanceContent');
+
+            content.textContent = 'Generating guidance...';
+            section.style.display = 'block';
+
+            // Get API key from localStorage or show modal
+            let apiKey = localStorage.getItem('openai_api_key');
+
+            if (!apiKey) {
+                // Show modal and wait for user input
+                showApiKeyModal((key) => {
+                    // Retry with the provided key
+                    performGuidanceGeneration(key);
+                });
+                return;
+            }
+
+            await performGuidanceGeneration(apiKey);
+        }
+
+        async function performGuidanceGeneration(apiKey) {
             const section = document.getElementById('writtenGuidanceSection');
             const content = document.getElementById('writtenGuidanceContent');
 
@@ -5919,7 +6038,7 @@
 
             try {
                 // Prepare data for OpenAI
-                const prompt = `Generate professional installation guidance for a flue terminal installation with the following details:
+                const promptText = `Generate professional installation guidance for a flue terminal installation with the following details:
 
 Boiler: ${state.flueBrand || 'Unknown'} ${state.flueModel || 'Unknown'}
 
@@ -5949,13 +6068,13 @@ Format the response in clear, professional language suitable for a gas engineer.
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + (localStorage.getItem('openai_api_key') || prompt('Please enter your OpenAI API key:'))
+                        'Authorization': 'Bearer ' + apiKey
                     },
                     body: JSON.stringify({
                         model: 'gpt-4',
                         messages: [{
                             role: 'user',
-                            content: prompt
+                            content: promptText
                         }],
                         temperature: 0.7,
                         max_tokens: 1000
@@ -5963,6 +6082,15 @@ Format the response in clear, professional language suitable for a gas engineer.
                 });
 
                 if (!response.ok) {
+                    // If unauthorized, clear the stored key and show modal again
+                    if (response.status === 401) {
+                        localStorage.removeItem('openai_api_key');
+                        content.textContent = 'Invalid API key. Please try again.';
+                        showApiKeyModal((key) => {
+                            performGuidanceGeneration(key);
+                        });
+                        return;
+                    }
                     throw new Error('API request failed: ' + response.statusText);
                 }
 
@@ -5970,14 +6098,6 @@ Format the response in clear, professional language suitable for a gas engineer.
                 const guidance = data.choices[0].message.content;
 
                 content.textContent = guidance;
-
-                // Save API key for future use
-                if (localStorage.getItem('openai_api_key') === null) {
-                    const key = prompt('Save this API key for future use?');
-                    if (key) {
-                        localStorage.setItem('openai_api_key', key);
-                    }
-                }
 
             } catch (error) {
                 console.error('Error generating guidance:', error);
@@ -6172,7 +6292,7 @@ Format the response in clear, professional language suitable for a gas engineer.
                         zones: state.zones ? Object.keys(state.zones) : []
                     },
                     localStorage: {
-                        hasOpenAIKey: !!localStorage.getItem('openaiApiKey'),
+                        hasOpenAIKey: !!localStorage.getItem('openai_api_key'),
                         hasCloudflareUrl: !!localStorage.getItem('cloudflareWorkerUrl')
                     }
                 };
