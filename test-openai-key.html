@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI API Key Test - Clearance Genie</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .test-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        button {
+            background: #10a37f;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 500;
+        }
+        button:hover {
+            background: #0d8c6d;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #5a6268;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #10a37f;
+            color: white;
+        }
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        .status.pending {
+            background: #ff9800;
+            color: white;
+        }
+        .note {
+            background: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #2196F3;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .api-info {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .ai-response {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #10a37f;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 OpenAI API Key Test</h1>
+        <div class="subtitle">Test if your OpenAI API key is working correctly for the AI Guidance feature</div>
+
+        <div class="note">
+            <strong>📝 Note:</strong> The Clearance Genie app uses OpenAI's GPT-4 API to generate installation guidance.
+            This test will verify that your API key is valid and has access to GPT-4.
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">API Key Configuration</div>
+
+            <div class="input-group">
+                <label for="apiKeyInput">OpenAI API Key:</label>
+                <input type="password" id="apiKeyInput" placeholder="sk-proj-..." value="">
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Your key starts with "sk-" and will be stored in browser localStorage (like the main app)
+                </small>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <button onclick="saveApiKey()">💾 Save API Key</button>
+                <button class="secondary" onclick="loadApiKey()">📋 Load Saved Key</button>
+                <button class="secondary" onclick="clearApiKey()">🗑️ Clear Saved Key</button>
+            </div>
+
+            <div id="key-status" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">Test 1: API Key Validation</div>
+            <p>Quick test to verify the API key format and check account status.</p>
+            <button onclick="testApiKeyValidation()" id="test-validation-btn">🔍 Validate API Key</button>
+            <div id="validation-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">Test 2: GPT-4 Access Test</div>
+            <p>Test if your key has access to GPT-4 (required for the AI Guidance feature).</p>
+            <button onclick="testGPT4Access()" id="test-gpt4-btn">🤖 Test GPT-4 Access</button>
+            <div id="gpt4-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">Test 3: Full Installation Guidance Simulation</div>
+            <p>Simulate the actual AI guidance generation that the app uses.</p>
+            <button onclick="testFullGuidance()" id="test-full-btn">📝 Generate Sample Guidance</button>
+            <div id="full-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">Summary</div>
+            <div id="summary">
+                <p>Enter your OpenAI API key above and run the tests to verify it's working correctly.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+        const STORAGE_KEY = 'openai_api_key';
+
+        let testResults = {
+            validation: null,
+            gpt4: null,
+            full: null
+        };
+
+        // Load key from localStorage on page load
+        window.addEventListener('load', () => {
+            loadApiKey();
+        });
+
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const statusDiv = document.getElementById('key-status');
+
+            if (!apiKey) {
+                statusDiv.innerHTML = '<div class="result error">❌ Please enter an API key</div>';
+                return;
+            }
+
+            if (!apiKey.startsWith('sk-')) {
+                statusDiv.innerHTML = '<div class="result warning">⚠️ Warning: OpenAI keys usually start with "sk-"</div>';
+            }
+
+            localStorage.setItem(STORAGE_KEY, apiKey);
+            statusDiv.innerHTML = '<div class="result success">✅ API key saved to localStorage</div>';
+        }
+
+        function loadApiKey() {
+            const apiKey = localStorage.getItem(STORAGE_KEY);
+            const statusDiv = document.getElementById('key-status');
+
+            if (apiKey) {
+                document.getElementById('apiKeyInput').value = apiKey;
+                statusDiv.innerHTML = `<div class="result success">✅ Loaded saved API key (${apiKey.substring(0, 10)}...)</div>`;
+            } else {
+                statusDiv.innerHTML = '<div class="result info">ℹ️ No saved API key found</div>';
+            }
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('apiKeyInput').value = '';
+            document.getElementById('key-status').innerHTML = '<div class="result success">✅ API key cleared</div>';
+        }
+
+        function getApiKey() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                alert('Please enter your OpenAI API key first');
+                return null;
+            }
+            return apiKey;
+        }
+
+        async function testApiKeyValidation() {
+            const resultDiv = document.getElementById('validation-result');
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            resultDiv.innerHTML = '<div class="result info"><span class="spinner"></span>Validating API key...</div>';
+
+            try {
+                // Make a minimal API call to test the key
+                const response = await fetch(OPENAI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [{
+                            role: 'user',
+                            content: 'test'
+                        }],
+                        max_tokens: 5
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    testResults.validation = 'success';
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ API Key is VALID!<br>
+                            <div class="api-info">
+                                <strong>Status:</strong> ${response.status} OK<br>
+                                <strong>Model:</strong> ${data.model}<br>
+                                <strong>Key Format:</strong> ${apiKey.substring(0, 10)}...
+                            </div>
+                        </div>
+                    `;
+                } else if (response.status === 401) {
+                    testResults.validation = 'error';
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ INVALID API KEY<br>
+                            <strong>Error:</strong> ${data.error?.message || 'Authentication failed'}<br>
+                            <br>
+                            Please check:
+                            - Key is copied correctly (should start with "sk-")
+                            - Key hasn't been revoked
+                            - Account is active
+                        </div>
+                    `;
+                } else if (response.status === 429) {
+                    testResults.validation = 'warning';
+                    resultDiv.innerHTML = `
+                        <div class="result warning">
+                            ⚠️ RATE LIMIT EXCEEDED<br>
+                            <strong>Message:</strong> ${data.error?.message || 'Too many requests'}<br>
+                            <br>
+                            The API key is valid but you've hit rate limits. Wait a moment and try again.
+                        </div>
+                    `;
+                } else {
+                    testResults.validation = 'error';
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ API ERROR<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Error:</strong> ${data.error?.message || 'Unknown error'}<br>
+                            <strong>Details:</strong><br>
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                testResults.validation = 'error';
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ CONNECTION ERROR<br>
+                        Error: ${error.message}<br>
+                        <br>
+                        This might be a network issue or CORS problem.
+                    </div>
+                `;
+            }
+            updateSummary();
+        }
+
+        async function testGPT4Access() {
+            const resultDiv = document.getElementById('gpt4-result');
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            resultDiv.innerHTML = '<div class="result info"><span class="spinner"></span>Testing GPT-4 access...</div>';
+
+            try {
+                // Test GPT-4 specifically (what the app uses)
+                const response = await fetch(OPENAI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4',
+                        messages: [{
+                            role: 'user',
+                            content: 'Say "GPT-4 access confirmed"'
+                        }],
+                        max_tokens: 10
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    testResults.gpt4 = 'success';
+                    const aiResponse = data.choices[0]?.message?.content || 'No response';
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ GPT-4 ACCESS CONFIRMED!<br>
+                            <div class="api-info">
+                                <strong>Model:</strong> ${data.model}<br>
+                                <strong>Response:</strong> "${aiResponse}"<br>
+                                <strong>Tokens Used:</strong> ${data.usage?.total_tokens || 'N/A'}
+                            </div>
+                            <br>
+                            Your API key has access to GPT-4 and will work with the AI Guidance feature! ✨
+                        </div>
+                    `;
+                } else if (response.status === 404 || (data.error?.code === 'model_not_found')) {
+                    testResults.gpt4 = 'error';
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ NO GPT-4 ACCESS<br>
+                            <strong>Error:</strong> ${data.error?.message || 'Model not found'}<br>
+                            <br>
+                            Your API key doesn't have access to GPT-4. You may need to:
+                            - Upgrade your OpenAI account
+                            - Add payment method to your account
+                            - Request GPT-4 API access
+                            <br><br>
+                            Visit: https://platform.openai.com/account/billing
+                        </div>
+                    `;
+                } else {
+                    testResults.gpt4 = 'error';
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ GPT-4 TEST FAILED<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Error:</strong> ${data.error?.message || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                testResults.gpt4 = 'error';
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ TEST FAILED<br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+            updateSummary();
+        }
+
+        async function testFullGuidance() {
+            const resultDiv = document.getElementById('full-result');
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            resultDiv.innerHTML = '<div class="result info"><span class="spinner"></span>Generating installation guidance... (this may take 10-20 seconds)</div>';
+
+            try {
+                // Simulate the exact prompt the app uses
+                const promptText = `Generate professional installation guidance for a flue terminal installation with the following details:
+
+Boiler: Worcester Bosch Greenstar 30CDi
+
+Marked Obstacles:
+1. window at position (250, 150)
+2. door at position (450, 300)
+
+Clearance Requirements:
+- window: 300mm
+- door: 300mm
+- boundary: 600mm
+
+Flue Terminal Position: (350, 200)
+
+Scale: 10.5 pixels/mm
+
+Please provide:
+1. A summary of the installation requirements
+2. Key clearance distances that must be maintained
+3. Any special considerations or rules
+4. Compliance status (whether the marked position meets requirements)
+5. Recommendations for the installer
+
+Format the response in clear, professional language suitable for a gas engineer.`;
+
+                const response = await fetch(OPENAI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4',
+                        messages: [{
+                            role: 'user',
+                            content: promptText
+                        }],
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    testResults.full = 'success';
+                    const guidance = data.choices[0]?.message?.content || 'No response';
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ INSTALLATION GUIDANCE GENERATED SUCCESSFULLY!<br>
+                            <div class="api-info">
+                                <strong>Model:</strong> ${data.model}<br>
+                                <strong>Tokens Used:</strong> ${data.usage?.total_tokens || 'N/A'} (${data.usage?.prompt_tokens || 0} prompt + ${data.usage?.completion_tokens || 0} completion)<br>
+                                <strong>Estimated Cost:</strong> ~$${((data.usage?.prompt_tokens || 0) * 0.00003 + (data.usage?.completion_tokens || 0) * 0.00006).toFixed(4)}
+                            </div>
+                            <br>
+                            <strong>Generated Guidance:</strong>
+                            <div class="ai-response">
+                                ${guidance.replace(/\n/g, '<br>')}
+                            </div>
+                            <br>
+                            <strong>✨ Your API key is fully functional for the Clearance Genie app!</strong>
+                        </div>
+                    `;
+                } else {
+                    testResults.full = 'error';
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ GUIDANCE GENERATION FAILED<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Error:</strong> ${data.error?.message || 'Unknown error'}<br>
+                            <strong>Details:</strong><br>
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                testResults.full = 'error';
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ GENERATION FAILED<br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summaryDiv = document.getElementById('summary');
+            let html = '<h3>Test Results Summary:</h3>';
+
+            html += '<div style="margin: 15px 0;">';
+            html += `<p><strong>API Key Validation:</strong> ${getStatusBadge(testResults.validation)}</p>`;
+            html += `<p><strong>GPT-4 Access:</strong> ${getStatusBadge(testResults.gpt4)}</p>`;
+            html += `<p><strong>Full Guidance Test:</strong> ${getStatusBadge(testResults.full)}</p>`;
+            html += '</div>';
+
+            if (testResults.validation === 'success' && testResults.gpt4 === 'success') {
+                html += '<div class="result success"><strong>🎉 SUCCESS! Your OpenAI API key is working correctly!</strong><br><br>Your API key:<br>✅ Is valid and authenticated<br>✅ Has access to GPT-4<br>✅ Can generate installation guidance<br><br>You can now use the AI Guidance feature in the Clearance Genie app!</div>';
+            } else if (testResults.validation === 'success' && testResults.gpt4 === 'error') {
+                html += '<div class="result warning"><strong>⚠️ API Key Valid but No GPT-4 Access</strong><br><br>Your API key is valid but doesn\'t have access to GPT-4. You may need to upgrade your OpenAI account or add a payment method.</div>';
+            } else if (testResults.validation === 'error') {
+                html += '<div class="result error"><strong>❌ API Key Invalid</strong><br><br>Your API key is not working. Please check that it\'s entered correctly and hasn\'t been revoked.</div>';
+            } else {
+                html += '<div class="result info">Run the tests above to check your API key status.</div>';
+            }
+
+            summaryDiv.innerHTML = html;
+        }
+
+        function getStatusBadge(status) {
+            if (status === 'success') return '<span class="status success">✅ PASS</span>';
+            if (status === 'error') return '<span class="status error">❌ FAIL</span>';
+            if (status === 'warning') return '<span class="status pending">⚠️ WARNING</span>';
+            return '<span class="status pending">⏳ NOT RUN</span>';
+        }
+    </script>
+</body>
+</html>
