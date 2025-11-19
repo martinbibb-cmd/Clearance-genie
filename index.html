@@ -6117,6 +6117,12 @@
             const section = document.getElementById('writtenGuidanceSection');
             const content = document.getElementById('writtenGuidanceContent');
 
+            if (!state.position) {
+                content.textContent = 'Please set the flue terminal position before generating guidance.';
+                section.style.display = 'block';
+                return;
+            }
+
             content.textContent = 'Generating guidance...';
             section.style.display = 'block';
 
@@ -6143,6 +6149,10 @@
             section.style.display = 'block';
 
             try {
+                const positionText = state.position
+                    ? `(${Math.round(state.position.x)}, ${Math.round(state.position.y)})`
+                    : 'Not set';
+
                 // Prepare data for OpenAI
                 const promptText = `Generate professional installation guidance for a flue terminal installation with the following details:
 
@@ -6156,7 +6166,7 @@ ${state.flueClearances ? Object.entries(state.flueClearances).map(([pos, data]) 
     `- ${pos}: ${data.clearanceMM}mm${data.specialRules ? ' (' + data.specialRules + ')' : ''}`
 ).join('\n') : 'Not specified'}
 
-Flue Terminal Position: (${Math.round(state.position.x)}, ${Math.round(state.position.y)})
+Flue Terminal Position: ${positionText}
 
 Scale: ${state.pxPerMM ? state.pxPerMM.toFixed(2) : 'Unknown'} pixels/mm
 
