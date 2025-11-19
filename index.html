@@ -1781,8 +1781,8 @@
 
             const brickPixels = [];
 
-            // Detect red/orange/brown brick colors
-            // Bricks typically have: R > G > B, with R being dominant
+            // Enhanced brick color detection for red/orange/brown bricks
+            // Supports various brick types: red clay, orange, buff, brown
             for (let y = 0; y < state.canvas.height; y += 2) {
                 for (let x = 0; x < state.canvas.width; x += 2) {
                     const i = (y * state.canvas.width + x) * 4;
@@ -1790,21 +1790,44 @@
                     const g = data[i + 1];
                     const b = data[i + 2];
 
-                    // Red brick detection: r > g, r > b, and r is reasonably high
-                    // Also check that it's not too bright (white) or too dark (shadow)
-                    if (r > g + 20 && r > b + 30 && r > 80 && r < 220 &&
-                        g > 30 && g < 180 && b > 20 && b < 150) {
+                    // Calculate color characteristics
+                    const brightness = (r + g + b) / 3;
+                    const redDominance = r - Math.max(g, b);
+
+                    // Red/orange brick detection (most common)
+                    const isRedBrick = r > g + 20 && r > b + 30 &&
+                                      r > 80 && r < 220 &&
+                                      g > 30 && g < 180 &&
+                                      b > 20 && b < 150 &&
+                                      brightness > 60 && brightness < 180;
+
+                    // Buff/yellow brick detection
+                    const isBuffBrick = r > 120 && g > 100 && b > 60 &&
+                                       r < 200 && g < 180 && b < 130 &&
+                                       r > b + 20 && g > b + 15 &&
+                                       Math.abs(r - g) < 40;
+
+                    // Brown brick detection
+                    const isBrownBrick = r > g && g > b &&
+                                        r > 60 && r < 150 &&
+                                        g > 40 && g < 120 &&
+                                        b > 20 && b < 100 &&
+                                        redDominance > 15;
+
+                    if (isRedBrick || isBuffBrick || isBrownBrick) {
                         brickPixels.push({x, y});
                     }
                 }
             }
 
-            if (brickPixels.length < 100) {
+            // Require more pixels for better detection reliability
+            if (brickPixels.length < 200) {
                 status.classList.add('warning');
-                status.textContent = '❌ Could not find brick. Try manual calibration or adjust lighting.';
+                status.textContent = '❌ Could not find brick. Try manual calibration, adjust lighting, or check brick orientation.';
                 return;
             }
 
+            // Find bounding box of detected pixels
             const minX = Math.min(...brickPixels.map(p => p.x));
             const maxX = Math.max(...brickPixels.map(p => p.x));
             const minY = Math.min(...brickPixels.map(p => p.y));
@@ -1812,6 +1835,14 @@
 
             const width = maxX - minX;
             const height = maxY - minY;
+
+            // Ensure minimum size to avoid false positives
+            if (width < 50 || height < 30) {
+                status.classList.add('warning');
+                status.textContent = '❌ Detected region too small. Move closer or try manual calibration.';
+                return;
+            }
+
             const aspectRatio = width / height;
 
             // Get expected dimensions based on brick orientation
@@ -1831,10 +1862,27 @@
             }
             expectedRatio = expectedWidth / expectedHeight;
 
-            // More lenient aspect ratio check for bricks (they're less uniform than cards)
-            if (Math.abs(aspectRatio - expectedRatio) > 0.5) {
+            // Validate aspect ratio with reasonable tolerance
+            // Bricks are less uniform than cards, but should still be within tolerance
+            const ratioTolerance = 0.4;
+            if (Math.abs(aspectRatio - expectedRatio) > ratioTolerance) {
                 status.classList.add('warning');
-                status.textContent = `⚠️ Found brick-colored region but shape doesn't match expected orientation (ratio: ${aspectRatio.toFixed(2)} vs ${expectedRatio.toFixed(2)}). Try manual calibration or check brick orientation setting.`;
+                status.textContent = `⚠️ Found brick-colored region (${aspectRatio.toFixed(2)}:1) but expected ${expectedRatio.toFixed(2)}:1 ratio. Try manual calibration or check brick orientation setting.`;
+
+                // Draw red box around detected region for user feedback
+                state.ctx.strokeStyle = '#f56565';
+                state.ctx.lineWidth = 3;
+                state.ctx.strokeRect(minX, minY, width, height);
+                return;
+            }
+
+            // Check pixel density within bounding box
+            const boxArea = width * height;
+            const pixelDensity = (brickPixels.length * 4) / boxArea; // *4 because we skip pixels
+
+            if (pixelDensity < 0.3) {
+                status.classList.add('warning');
+                status.textContent = '⚠️ Detected region is too sparse. Ensure brick fills frame and try again.';
 
                 state.ctx.strokeStyle = '#f56565';
                 state.ctx.lineWidth = 3;
@@ -1842,12 +1890,18 @@
                 return;
             }
 
+            // Success - set calibration points
             state.calibrationPoints = [
                 {x: minX, y: minY},
                 {x: maxX, y: minY},
                 {x: maxX, y: maxY},
                 {x: minX, y: maxY}
             ];
+
+            // Visual feedback - draw green box
+            state.ctx.strokeStyle = '#48bb78';
+            state.ctx.lineWidth = 3;
+            state.ctx.strokeRect(minX, minY, width, height);
 
             status.textContent = '✅ Brick detected! Calculating scale...';
 
