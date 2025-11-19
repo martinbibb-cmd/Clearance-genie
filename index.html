@@ -1779,12 +1779,17 @@
             const imageData = state.ctx.getImageData(0, 0, state.canvas.width, state.canvas.height);
             const data = imageData.data;
 
-            const brickPixels = [];
+            // Sample fewer pixels for speed while still covering the frame
+            const sampleStep = Math.max(2, Math.round(Math.min(state.canvas.width, state.canvas.height) / 400));
+            const maskWidth = Math.ceil(state.canvas.width / sampleStep);
+            const maskHeight = Math.ceil(state.canvas.height / sampleStep);
+            const mask = new Uint8Array(maskWidth * maskHeight);
 
             // Detect red/orange/brown brick colors
             // Bricks typically have: R > G > B, with R being dominant
-            for (let y = 0; y < state.canvas.height; y += 2) {
-                for (let x = 0; x < state.canvas.width; x += 2) {
+            let detectedCount = 0;
+            for (let y = 0; y < state.canvas.height; y += sampleStep) {
+                for (let x = 0; x < state.canvas.width; x += sampleStep) {
                     const i = (y * state.canvas.width + x) * 4;
                     const r = data[i];
                     const g = data[i + 1];
@@ -1793,29 +1798,26 @@
                     // Red brick detection: r > g, r > b, and r is reasonably high
                     // Also check that it's not too bright (white) or too dark (shadow)
                     if (r > g + 20 && r > b + 30 && r > 80 && r < 220 &&
-                        g > 30 && g < 180 && b > 20 && b < 150) {
-                        brickPixels.push({x, y});
+                        g > 30 && g < 190 && b > 20 && b < 170) {
+                        const gridX = Math.floor(x / sampleStep);
+                        const gridY = Math.floor(y / sampleStep);
+                        const idx = gridY * maskWidth + gridX;
+                        if (!mask[idx]) {
+                            mask[idx] = 1;
+                            detectedCount++;
+                        }
                     }
                 }
             }
 
-            if (brickPixels.length < 100) {
+            if (detectedCount < 50) {
                 status.classList.add('warning');
                 status.textContent = '❌ Could not find brick. Try manual calibration or adjust lighting.';
                 return;
             }
 
-            const minX = Math.min(...brickPixels.map(p => p.x));
-            const maxX = Math.max(...brickPixels.map(p => p.x));
-            const minY = Math.min(...brickPixels.map(p => p.y));
-            const maxY = Math.max(...brickPixels.map(p => p.y));
-
-            const width = maxX - minX;
-            const height = maxY - minY;
-            const aspectRatio = width / height;
-
             // Get expected dimensions based on brick orientation
-            let expectedWidth, expectedHeight, expectedRatio;
+            let expectedWidth, expectedHeight;
             if (state.brickOrientation === 'length') {
                 // Stretcher: 215mm × 65mm
                 expectedWidth = BRICK_LENGTH_MM;
@@ -1829,27 +1831,111 @@
                 expectedWidth = BRICK_LENGTH_MM;
                 expectedHeight = BRICK_WIDTH_MM;
             }
-            expectedRatio = expectedWidth / expectedHeight;
+            const expectedRatio = expectedWidth / expectedHeight;
 
-            // More lenient aspect ratio check for bricks (they're less uniform than cards)
-            if (Math.abs(aspectRatio - expectedRatio) > 0.5) {
+            const minAreaPx = Math.max(4000, state.canvas.width * state.canvas.height * 0.001);
+            const ratioTolerance = expectedRatio > 1.5 ? 0.8 : 0.4;
+
+            // Find contiguous regions of brick-colored pixels
+            const visited = new Uint8Array(mask.length);
+            const components = [];
+
+            const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
+
+            for (let idx = 0; idx < mask.length; idx++) {
+                if (!mask[idx] || visited[idx]) continue;
+
+                const queue = [idx];
+                visited[idx] = 1;
+
+                let minX = Infinity;
+                let minY = Infinity;
+                let maxX = -Infinity;
+                let maxY = -Infinity;
+                let count = 0;
+
+                while (queue.length) {
+                    const current = queue.pop();
+                    const gridX = current % maskWidth;
+                    const gridY = Math.floor(current / maskWidth);
+
+                    const actualX = gridX * sampleStep;
+                    const actualY = gridY * sampleStep;
+
+                    minX = Math.min(minX, actualX);
+                    minY = Math.min(minY, actualY);
+                    maxX = Math.max(maxX, actualX + sampleStep);
+                    maxY = Math.max(maxY, actualY + sampleStep);
+                    count++;
+
+                    neighbors.forEach(([dx, dy]) => {
+                        const nx = gridX + dx;
+                        const ny = gridY + dy;
+                        if (nx < 0 || ny < 0 || nx >= maskWidth || ny >= maskHeight) return;
+                        const nIdx = ny * maskWidth + nx;
+                        if (mask[nIdx] && !visited[nIdx]) {
+                            visited[nIdx] = 1;
+                            queue.push(nIdx);
+                        }
+                    });
+                }
+
+                const regionWidth = maxX - minX;
+                const regionHeight = maxY - minY;
+                const area = regionWidth * regionHeight;
+
+                if (area < minAreaPx || regionWidth < 20 || regionHeight < 20) {
+                    continue;
+                }
+
+                const regionRatio = regionWidth / regionHeight;
+                const ratioDiff = Math.abs(regionRatio - expectedRatio);
+
+                components.push({
+                    minX,
+                    minY,
+                    maxX,
+                    maxY,
+                    area,
+                    ratioDiff,
+                    regionRatio
+                });
+            }
+
+            if (components.length === 0) {
                 status.classList.add('warning');
-                status.textContent = `⚠️ Found brick-colored region but shape doesn't match expected orientation (ratio: ${aspectRatio.toFixed(2)} vs ${expectedRatio.toFixed(2)}). Try manual calibration or check brick orientation setting.`;
+                status.textContent = '❌ Found brick-like colors but not a single brick. Try manual calibration.';
+                return;
+            }
 
-                state.ctx.strokeStyle = '#f56565';
-                state.ctx.lineWidth = 3;
-                state.ctx.strokeRect(minX, minY, width, height);
+            // Select component that best matches expected aspect ratio and has reasonable size
+            components.sort((a, b) => {
+                if (Math.abs(a.ratioDiff - b.ratioDiff) < 0.05) {
+                    return b.area - a.area;
+                }
+                return a.ratioDiff - b.ratioDiff;
+            });
+
+            const best = components.find(c => c.ratioDiff <= ratioTolerance) || components[0];
+
+            if (!best || best.ratioDiff > ratioTolerance * 1.5) {
+                status.classList.add('warning');
+                status.textContent = '❌ Could not isolate a brick. Try manual calibration or check orientation selection.';
                 return;
             }
 
             state.calibrationPoints = [
-                {x: minX, y: minY},
-                {x: maxX, y: minY},
-                {x: maxX, y: maxY},
-                {x: minX, y: maxY}
+                {x: best.minX, y: best.minY},
+                {x: best.maxX, y: best.minY},
+                {x: best.maxX, y: best.maxY},
+                {x: best.minX, y: best.maxY}
             ];
 
             status.textContent = '✅ Brick detected! Calculating scale...';
+
+            state.ctx.strokeStyle = '#48bb78';
+            state.ctx.lineWidth = 3;
+            state.ctx.strokeRect(best.minX, best.minY, best.maxX - best.minX, best.maxY - best.minY);
 
             setTimeout(() => calculateCalibration(), 500);
         }
