@@ -198,6 +198,30 @@
             gap: 10px;
         }
 
+        /* iPad-specific layout */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .ipad-layout {
+                display: flex;
+                gap: 20px;
+                align-items: flex-start;
+            }
+
+            .ipad-layout .canvas-container {
+                flex: 0 0 60%;
+                margin: 0;
+            }
+
+            .ipad-layout .controls-panel {
+                flex: 1;
+                background: white;
+                border-radius: 15px;
+                padding: 20px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 1.8em;
@@ -657,29 +681,36 @@
                 <div class="status active" id="positionStatus">
                     👆 Tap on the image to mark the position
                 </div>
-
-                <label style="display: block; margin: 15px 0;">
-                    <strong>Brand:</strong>
-                    <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;" onchange="updateModelSelector()">
-                        <option value="">Select a brand...</option>
-                    </select>
-                </label>
-
-                <label id="modelSelectorLabel" style="display: none; margin: 15px 0;">
-                    <strong>Model/Range:</strong>
-                    <select id="modelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px;" onchange="updateBoilerClearancesFromCSV()">
-                        <option value="">Select a model...</option>
-                    </select>
-                </label>
             </div>
 
             <div id="boilerEditingSection" style="display: none;">
+                <div class="instructions">
+                    <h3>Select Boiler Brand & Model</h3>
+                    <p>Choose your boiler to load manufacturer specifications:</p>
+                </div>
+
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <label style="display: block; margin-bottom: 15px;">
+                        <strong>Brand:</strong>
+                        <select id="brandSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="updateModelSelector()">
+                            <option value="">Select a brand...</option>
+                        </select>
+                    </label>
+
+                    <label id="modelSelectorLabel" style="display: none; margin-bottom: 15px;">
+                        <strong>Model/Range:</strong>
+                        <select id="modelSelect" style="width: 100%; padding: 10px; border-radius: 5px; margin-top: 5px; border: 1px solid #ccc;" onchange="updateBoilerClearancesFromCSV()">
+                            <option value="">Select a model...</option>
+                        </select>
+                    </label>
+                </div>
+
                 <div id="clearanceNotesSection" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107;">
                     <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Special Requirements</h4>
                     <div id="clearanceNotesContent" style="color: #856404;"></div>
                 </div>
 
-                <div class="instructions">
+                <div class="instructions" style="margin-top: 20px;">
                     <h3>Edit Boiler Dimensions & Clearances</h3>
                     <p>Adjust the dimensions and clearances as needed:</p>
                 </div>
@@ -1203,8 +1234,64 @@
             // Long press move state
             isLongPressing: false,
             longPressTimer: null,
-            isMovingObject: false
+            isMovingObject: false,
+            // iPad mode
+            isIPad: false
         };
+
+        // Detect if device is iPad
+        function detectIPad() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const isIPadUA = /iPad/.test(userAgent) ||
+                           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isTabletSize = window.innerWidth >= 768 && window.innerWidth <= 1024;
+            state.isIPad = isIPadUA || isTabletSize;
+            console.log('iPad detected:', state.isIPad);
+            return state.isIPad;
+        }
+
+        // Setup iPad layout
+        function setupIPadLayout() {
+            if (!state.isIPad) return;
+
+            const container = document.querySelector('.container');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const analysisCard = document.getElementById('analysisCard');
+
+            // Create wrapper for iPad layout
+            let ipadWrapper = document.getElementById('ipadLayoutWrapper');
+            if (!ipadWrapper) {
+                ipadWrapper = document.createElement('div');
+                ipadWrapper.id = 'ipadLayoutWrapper';
+                ipadWrapper.className = 'ipad-layout';
+
+                // Create controls panel
+                const controlsPanel = document.createElement('div');
+                controlsPanel.id = 'controlsPanel';
+                controlsPanel.className = 'controls-panel';
+
+                // Move canvas and controls into wrapper
+                if (canvasContainer && analysisCard) {
+                    container.insertBefore(ipadWrapper, analysisCard);
+                    ipadWrapper.appendChild(canvasContainer);
+                    ipadWrapper.appendChild(controlsPanel);
+                    controlsPanel.appendChild(analysisCard);
+                }
+            }
+        }
+
+        // Auto-advance to next step on iPad
+        function autoAdvanceOnIPad(delay = 500) {
+            if (!state.isIPad) return;
+
+            setTimeout(() => {
+                // Scroll to relevant section
+                const activeSection = document.querySelector('[style*="display: block"]:not(#canvasContainer)');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, delay);
+        }
 
         // CSV Parsing and Loading Functions
         async function loadBoilerClearances() {
@@ -1625,6 +1712,15 @@
         loadVerticalFlueClearances();
         loadCylinders();
 
+        // Detect iPad and setup layout
+        detectIPad();
+        window.addEventListener('resize', () => {
+            detectIPad();
+            if (state.isIPad && state.canvas) {
+                setupIPadLayout();
+            }
+        });
+
         document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 
         function openCamera() {
@@ -1671,6 +1767,11 @@
             setupPanControls();
             setupLongPressMove();
             document.getElementById('zoomControls').style.display = 'block';
+
+            // Setup iPad layout if on iPad
+            if (state.isIPad) {
+                setupIPadLayout();
+            }
         }
 
         function setCalibrationMode(mode) {
@@ -3425,6 +3526,9 @@
                 });
 
                 modelLabel.style.display = 'block';
+
+                // Auto-advance on iPad
+                autoAdvanceOnIPad();
             } else {
                 modelLabel.style.display = 'none';
             }
@@ -3477,6 +3581,9 @@
             if (state.position) {
                 drawBoilerWithClearances();
             }
+
+            // Auto-advance on iPad to show position instructions
+            autoAdvanceOnIPad();
         }
 
         function startBoilerMode() {
