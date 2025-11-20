@@ -991,7 +991,7 @@
                         </button>
                     </div>
 
-                    <button type="button" class="btn" onclick="generateWrittenGuidance()" style="margin-top: 10px;">
+                    <button type="button" class="btn" onclick="safeAsync(generateWrittenGuidance)()" style="margin-top: 10px;">
                         📝 Generate Written Guidance (AI)
                     </button>
 
@@ -1244,6 +1244,150 @@
             // iPad mode
             isIPad: false
         };
+
+        // Error tracking and console capture system
+        const errorTracking = {
+            consoleLogs: [],
+            breadcrumbs: [],
+            maxLogs: 100,
+            maxBreadcrumbs: 50
+        };
+
+        // Capture console logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            errorTracking.consoleLogs.push({
+                type: 'log',
+                timestamp: new Date().toISOString(),
+                message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')
+            });
+            if (errorTracking.consoleLogs.length > errorTracking.maxLogs) {
+                errorTracking.consoleLogs.shift();
+            }
+        };
+
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            errorTracking.consoleLogs.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')
+            });
+            if (errorTracking.consoleLogs.length > errorTracking.maxLogs) {
+                errorTracking.consoleLogs.shift();
+            }
+        };
+
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            errorTracking.consoleLogs.push({
+                type: 'warn',
+                timestamp: new Date().toISOString(),
+                message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')
+            });
+            if (errorTracking.consoleLogs.length > errorTracking.maxLogs) {
+                errorTracking.consoleLogs.shift();
+            }
+        };
+
+        // Add breadcrumb tracking
+        function addBreadcrumb(category, message, data = {}) {
+            errorTracking.breadcrumbs.push({
+                category,
+                message,
+                data,
+                timestamp: new Date().toISOString()
+            });
+            if (errorTracking.breadcrumbs.length > errorTracking.maxBreadcrumbs) {
+                errorTracking.breadcrumbs.shift();
+            }
+            console.log(`[Breadcrumb] ${category}: ${message}`, data);
+        }
+
+        // Global error handler for uncaught exceptions
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Uncaught error:', message, 'at', source, lineno, colno);
+            addBreadcrumb('error', 'Uncaught exception', {
+                message,
+                source,
+                lineno,
+                colno,
+                stack: error?.stack
+            });
+
+            // Display error to user
+            const errorMsg = `Error: ${message}\nLocation: ${source}:${lineno}\n\nThe app encountered an error but will continue running. Please report this bug if it persists.`;
+            if (confirm(errorMsg + '\n\nWould you like to report this bug?')) {
+                document.getElementById('bugReportModal').style.display = 'flex';
+                const bugDesc = document.getElementById('bugDescription');
+                if (bugDesc) {
+                    bugDesc.value = `Uncaught error: ${message}\nLocation: ${source}:${lineno}:${colno}\n\n`;
+                }
+            }
+
+            // Return true to prevent default browser error handling (which can cause reload)
+            return true;
+        };
+
+        // Global handler for unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+            addBreadcrumb('promise-rejection', 'Unhandled promise rejection', {
+                reason: event.reason?.toString(),
+                stack: event.reason?.stack
+            });
+
+            // Display error to user
+            let errorMsg = 'An API call or operation failed: ';
+            if (event.reason?.message) {
+                errorMsg += event.reason.message;
+            } else {
+                errorMsg += String(event.reason);
+            }
+
+            // Update status if available
+            const status = document.getElementById('positionStatus');
+            if (status) {
+                status.textContent = '❌ ' + errorMsg;
+                status.classList.add('warning');
+            }
+
+            // Show user-friendly error dialog
+            if (confirm(errorMsg + '\n\nThe app will continue running. Would you like to report this bug?')) {
+                document.getElementById('bugReportModal').style.display = 'flex';
+                const bugDesc = document.getElementById('bugDescription');
+                if (bugDesc) {
+                    bugDesc.value = `Unhandled promise rejection:\n${event.reason?.message || event.reason}\n\nStack: ${event.reason?.stack || 'N/A'}\n\n`;
+                }
+            }
+
+            // Prevent default (which can cause reload)
+            event.preventDefault();
+        });
+
+        // Safe async function wrapper for onclick handlers
+        function safeAsync(fn) {
+            return function(...args) {
+                Promise.resolve(fn.apply(this, args)).catch(error => {
+                    console.error('Async function error:', error);
+                    addBreadcrumb('async-error', 'Async function failed', {
+                        functionName: fn.name,
+                        error: error.toString(),
+                        stack: error.stack
+                    });
+
+                    const status = document.getElementById('positionStatus');
+                    if (status) {
+                        status.textContent = '❌ Operation failed: ' + (error.message || error);
+                        status.classList.add('warning');
+                    }
+                });
+            };
+        }
 
         // Detect if device is iPad
         function detectIPad() {
@@ -1740,6 +1884,8 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            addBreadcrumb('user-action', 'Photo upload started', { fileName: file.name, fileSize: file.size });
+
             const reader = new FileReader();
             reader.onload = function(event) {
                 const originalDataUrl = event.target.result;
@@ -1753,6 +1899,11 @@
                     setupCanvas(processedImg);
                     document.getElementById('canvasContainer').classList.add('active');
                     document.getElementById('calibrationCard').style.display = 'block';
+
+                    addBreadcrumb('user-action', 'Photo uploaded successfully', {
+                        width: processedImg.width,
+                        height: processedImg.height
+                    });
                 };
                 img.src = originalDataUrl;
             };
@@ -6181,6 +6332,11 @@
             content.textContent = 'Generating guidance...';
             section.style.display = 'block';
 
+            addBreadcrumb('api-call', 'Starting OpenAI guidance generation', {
+                boiler: `${state.flueBrand || 'Unknown'} ${state.flueModel || 'Unknown'}`,
+                obstaclesCount: state.obstacles?.length || 0
+            });
+
             try {
                 const positionText = state.position
                     ? `(${Math.round(state.position.x)}, ${Math.round(state.position.y)})`
@@ -6248,8 +6404,16 @@ Format the response in clear, professional language suitable for a gas engineer.
 
                 content.textContent = guidance;
 
+                addBreadcrumb('api-call', 'OpenAI guidance generation completed successfully', {
+                    responseLength: guidance.length
+                });
+
             } catch (error) {
                 console.error('Error generating guidance:', error);
+                addBreadcrumb('api-error', 'OpenAI guidance generation failed', {
+                    error: error.message,
+                    stack: error.stack
+                });
                 content.textContent = `Error generating guidance: ${error.message}\n\nPlease check your API key and try again.`;
             }
         }
@@ -6259,22 +6423,30 @@ Format the response in clear, professional language suitable for a gas engineer.
             status.textContent = '🔍 Detecting objects with OpenAI...';
             status.classList.remove('warning');
 
+            addBreadcrumb('api-call', 'Starting object detection with worker', {
+                position: state.position,
+                pxPerMM: state.pxPerMM
+            });
+
             // Ensure we have everything needed before calling the worker
             if (!state.photo || !state.canvas || !state.ctx) {
                 status.textContent = '❌ Please load a photo before running detection.';
                 status.classList.add('warning');
+                addBreadcrumb('validation-error', 'Detection failed: no photo loaded');
                 return;
             }
 
             if (!state.position) {
                 status.textContent = '❌ Tap the flue position before running detection.';
                 status.classList.add('warning');
+                addBreadcrumb('validation-error', 'Detection failed: no position set');
                 return;
             }
 
             if (!state.pxPerMM) {
                 status.textContent = '❌ Calibrate the image before running detection.';
                 status.classList.add('warning');
+                addBreadcrumb('validation-error', 'Detection failed: not calibrated');
                 return;
             }
 
@@ -6318,11 +6490,19 @@ Format the response in clear, professional language suitable for a gas engineer.
 
                 status.textContent = `✅ Detected ${result.detections.length} objects!`;
 
+                addBreadcrumb('api-call', 'Object detection completed successfully', {
+                    detectionsCount: result.detections.length
+                });
+
                 // Show results panel
                 document.getElementById('resultsPanel').classList.add('active');
 
             } catch (error) {
                 console.error('Detection error:', error);
+                addBreadcrumb('api-error', 'Object detection failed', {
+                    error: error.message,
+                    stack: error.stack
+                });
 
                 // Show specific error message
                 let errorMsg = 'Object detection failed.';
@@ -6483,7 +6663,9 @@ Format the response in clear, professional language suitable for a gas engineer.
                     localStorage: {
                         hasOpenAIKey: !!localStorage.getItem('openai_api_key'),
                         hasCloudflareUrl: !!localStorage.getItem('cloudflareWorkerUrl')
-                    }
+                    },
+                    consoleLogs: errorTracking.consoleLogs,
+                    breadcrumbs: errorTracking.breadcrumbs
                 };
 
                 // Format email body with all debug info
@@ -6540,6 +6722,29 @@ Format the response in clear, professional language suitable for a gas engineer.
             lines.push('--- CONFIGURATION ---');
             lines.push(`Has OpenAI Key: ${debugData.localStorage.hasOpenAIKey}`);
             lines.push(`Has Cloudflare URL: ${debugData.localStorage.hasCloudflareUrl}`);
+            lines.push('');
+            lines.push('');
+            lines.push('--- BREADCRUMBS (User Actions) ---');
+            if (debugData.breadcrumbs && debugData.breadcrumbs.length > 0) {
+                debugData.breadcrumbs.forEach(bc => {
+                    lines.push(`[${bc.timestamp}] ${bc.category}: ${bc.message}`);
+                    if (Object.keys(bc.data).length > 0) {
+                        lines.push(`  Data: ${JSON.stringify(bc.data)}`);
+                    }
+                });
+            } else {
+                lines.push('No breadcrumbs recorded.');
+            }
+            lines.push('');
+            lines.push('');
+            lines.push('--- CONSOLE LOGS ---');
+            if (debugData.consoleLogs && debugData.consoleLogs.length > 0) {
+                debugData.consoleLogs.forEach(log => {
+                    lines.push(`[${log.timestamp}] [${log.type.toUpperCase()}] ${log.message}`);
+                });
+            } else {
+                lines.push('No console logs recorded.');
+            }
             lines.push('');
             lines.push('');
             lines.push('===== END REPORT =====');
