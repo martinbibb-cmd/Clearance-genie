@@ -79,16 +79,18 @@ const CLEARANCE_RULES = {
 
 export default {
   async fetch(request, env) {
-    // CORS headers
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
-    };
+    const corsHeaders = buildCorsHeaders(request, env);
 
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Parse URL to determine endpoint
+    const url = new URL(request.url);
+
+    if (request.method === "GET" && url.pathname === "/health") {
+      return jsonResponse({ status: "ok" }, 200, corsHeaders);
     }
 
     // Only accept POST
@@ -99,8 +101,11 @@ export default {
       });
     }
 
-    // Parse URL to determine endpoint
-    const url = new URL(request.url);
+    // Validate JSON request body
+    const contentType = request.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      return jsonResponse({ error: "Content-Type must be application/json" }, 415, corsHeaders);
+    }
 
     // Bug report endpoint
     if (url.pathname === '/bug-report') {
@@ -109,7 +114,7 @@ export default {
 
     // Main object detection endpoint (default)
     try {
-      const data = await request.json();
+      const data = await safeParseJson(request);
       const {
         image, // base64 image
         pxPerMM, // calibration from card
@@ -170,12 +175,13 @@ export default {
       );
     } catch (error) {
       console.error("Worker error:", error);
+      const status = error.message === "Invalid JSON payload" ? 400 : 500;
       return jsonResponse(
         {
-          error: "Internal server error",
+          error: status === 400 ? "Invalid JSON payload" : "Internal server error",
           message: error.message
         },
-        500,
+        status,
         corsHeaders
       );
     }
@@ -184,7 +190,11 @@ export default {
 
 async function handleBugReport(request, corsHeaders) {
   try {
-    const bugData = await request.json();
+    const bugData = await safeParseJson(request);
+
+    if (!bugData?.description) {
+      return jsonResponse({ error: "Bug report description is required" }, 400, corsHeaders);
+    }
 
     // Send email via MailChannels
     const emailSent = await sendBugReportEmail(bugData);
@@ -204,9 +214,10 @@ async function handleBugReport(request, corsHeaders) {
     }
   } catch (error) {
     console.error("Bug report error:", error);
+    const status = error.message === "Invalid JSON payload" ? 400 : 500;
     return jsonResponse(
-      { error: "Failed to process bug report", message: error.message },
-      500,
+      { error: status === 400 ? "Invalid JSON payload" : "Failed to process bug report", message: error.message },
+      status,
       corsHeaders
     );
   }
@@ -285,6 +296,9 @@ async function sendBugReportEmail(bugData) {
 }
 
 function formatBugReportEmail(bugData) {
+  const state = bugData.state || {};
+  const localStorage = bugData.localStorage || {};
+
   const lines = [];
 
   lines.push("===== BUG REPORT =====\n");
@@ -299,17 +313,17 @@ function formatBugReportEmail(bugData) {
   lines.push(`URL: ${bugData.url}`);
 
   lines.push("\n\n--- APPLICATION STATE ---");
-  lines.push(`Has Photo: ${bugData.state.hasPhoto}`);
-  lines.push(`Is Calibrated: ${bugData.state.isCalibrated}`);
-  lines.push(`Scale: ${bugData.state.scale}`);
-  lines.push(`Position: ${JSON.stringify(bugData.state.position)}`);
-  lines.push(`Detected Objects: ${bugData.state.detectedObjects}`);
-  lines.push(`Obstacles: ${bugData.state.obstacles}`);
-  lines.push(`Zones: ${JSON.stringify(bugData.state.zones)}`);
+  lines.push(`Has Photo: ${state.hasPhoto}`);
+  lines.push(`Is Calibrated: ${state.isCalibrated}`);
+  lines.push(`Scale: ${state.scale}`);
+  lines.push(`Position: ${JSON.stringify(state.position)}`);
+  lines.push(`Detected Objects: ${state.detectedObjects}`);
+  lines.push(`Obstacles: ${state.obstacles}`);
+  lines.push(`Zones: ${JSON.stringify(state.zones)}`);
 
   lines.push("\n\n--- CONFIGURATION ---");
-  lines.push(`Has OpenAI Key: ${bugData.localStorage.hasOpenAIKey}`);
-  lines.push(`Has Cloudflare URL: ${bugData.localStorage.hasCloudflareUrl}`);
+  lines.push(`Has OpenAI Key: ${localStorage.hasOpenAIKey}`);
+  lines.push(`Has Cloudflare URL: ${localStorage.hasCloudflareUrl}`);
 
   lines.push("\n\n--- CONSOLE INFO ---");
   lines.push(bugData.consoleInfo);
@@ -487,4 +501,32 @@ function jsonResponse(data, status, corsHeaders) {
       "Content-Type": "application/json"
     }
   });
+}
+
+function buildCorsHeaders(request, env) {
+  const allowedOrigins = (env?.ALLOWED_ORIGINS || "*")
+    .split(",")
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+  const requestOrigin = request.headers.get("Origin");
+  const accessOrigin = allowedOrigins.includes("*")
+    ? "*"
+    : allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : allowedOrigins[0] || "*";
+
+  return {
+    "Access-Control-Allow-Origin": accessOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
+    "Access-Control-Allow-Headers": "Content-Type"
+  };
+}
+
+async function safeParseJson(request) {
+  try {
+    return await request.json();
+  } catch (error) {
+    throw new Error("Invalid JSON payload");
+  }
 }
