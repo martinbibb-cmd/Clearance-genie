@@ -145,16 +145,16 @@ export default {
       // Get clearance rules for this brand and mode
       const rules = CLEARANCE_RULES[brand]?.[mode] || CLEARANCE_RULES.worcester[mode];
 
-      // For flue mode, use Gemini API for object detection
+      // For flue mode, use OpenAI's Vision API for object detection
       let detections = [];
       if (mode === 'flue') {
-        detections = await detectObjectsWithGemini(image, imageWidth, imageHeight);
+        detections = await detectObjectsWithOpenAI(image, imageWidth, imageHeight, env);
       } else {
         // For boiler/radiator mode, no detection needed (user manually marks obstacles)
         detections = [];
       }
 
-      // Gemini API returns coordinates in original image dimensions, no scaling needed
+      // OpenAI returns coordinates in original image dimensions, no scaling needed
 
       // Calculate clearance zones
       const zones = calculateClearanceZones(detections, rules, pxPerMM, position, imageWidth, imageHeight);
@@ -338,50 +338,100 @@ function formatBugReportEmail(bugData) {
   return lines.join('\n');
 }
 
-async function detectObjectsWithGemini(imageBase64, imageWidth, imageHeight) {
-  // Prepare image for Gemini (ensure proper format)
+async function detectObjectsWithOpenAI(imageBase64, imageWidth, imageHeight, env) {
+  // Prepare image for OpenAI (ensure proper format)
   const imageUrl = imageBase64.startsWith("data:")
     ? imageBase64
     : `data:image/jpeg;base64,${imageBase64}`;
 
+  const apiKey = env?.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("Missing OPENAI_API_KEY env var for detection");
+    return [];
+  }
+
   try {
-    // Call Gemini worker endpoint
-    const response = await fetch("https://geminiworker.martinbibb.workers.dev", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        image: imageUrl,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
-        prompt: "Analyze this wall photo and identify all objects. For each object detected, provide: type (window/door/corner/soffit/vent/downpipe/boundary/other), bounding box coordinates {x, y, width, height} in pixels, and a descriptive label. Return ONLY valid JSON with format: {\"objects\": [{\"type\": \"window\", \"label\": \"Front window\", \"x\": 100, \"y\": 200, \"width\": 150, \"height\": 200}]}"
+        model: "gpt-4o-mini",
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "text",
+                text: "You are a vision model that identifies building features relevant to boiler/flue clearance. Respond ONLY with strict JSON matching {\"objects\":[{\"type\":\"window\",\"label\":\"Front window\",\"x\":120,\"y\":200,\"width\":180,\"height\":220}]}. Allowed types: window, door, corner, soffit, vent, downpipe, boundary, other. Coordinates must be integers in the original image pixel space."
+              }
+            ]
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Analyze the attached wall photo (${imageWidth}x${imageHeight}). Detect all relevant objects and return bounding boxes in pixels relative to the original image size.`
+              },
+              {
+                type: "image_url",
+                image_url: { url: imageUrl }
+              }
+            ]
+          }
+        ]
       })
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Gemini API error:", error);
+      console.error("OpenAI detection error:", error);
       return [];
     }
 
     const result = await response.json();
+    const messageContent = result?.choices?.[0]?.message?.content?.trim();
+    const parsed = parseDetectionJson(messageContent);
 
-    // Gemini worker should return objects in format: {objects: [...]}
-    if (result.objects && Array.isArray(result.objects)) {
-      return result.objects;
+    if (parsed?.objects && Array.isArray(parsed.objects)) {
+      return parsed.objects;
     }
 
-    // If response format is different, try to extract objects
-    if (result.detections && Array.isArray(result.detections)) {
-      return result.detections;
-    }
-
-    console.error("Unexpected Gemini response format:", result);
+    console.error("Unexpected OpenAI response format:", messageContent);
     return [];
   } catch (error) {
-    console.error("Failed to call Gemini API:", error);
+    console.error("Failed to call OpenAI API:", error);
     return [];
+  }
+}
+
+function parseDetectionJson(content) {
+  if (!content) return null;
+
+  // Remove optional markdown fences
+  const cleaned = content
+    .replace(/^```json\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    // Try to salvage JSON object substring
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (innerError) {
+        console.error("Failed to parse extracted JSON:", innerError);
+      }
+    }
+    console.error("Failed to parse OpenAI JSON response:", error);
+    return null;
   }
 }
 
