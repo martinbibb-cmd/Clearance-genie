@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Clearance Genie - MVP (Flues Only)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #48bb78;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #e53e3e;
+        }
+
+        .manufacturer-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f7fafc;
+            display: none;
+        }
+
+        .canvas-container.active {
+            display: block;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+
+        .instructions {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .instructions p {
+            margin: 5px 0;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .clearance-item {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clearance-item.pass {
+            background: #c6f6d5;
+            border-left: 4px solid #48bb78;
+        }
+
+        .clearance-item.fail {
+            background: #fed7d7;
+            border-left: 4px solid #f56565;
+        }
+
+        .clearance-item .label {
+            font-weight: 600;
+        }
+
+        .clearance-item .value {
+            font-family: monospace;
+            font-size: 1.1em;
+        }
+
+        .obstacle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .obstacle-btn {
+            padding: 12px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .obstacle-btn:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .obstacle-btn.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .legend {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 1px solid #cbd5e0;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .obstacle-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clearance Genie MVP</h1>
+        <p class="subtitle">Flue Terminal Clearance Checker</p>
+
+        <!-- Step 1: Manufacturer Selection -->
+        <div class="card" id="step1">
+            <h2>Step 1: Select Manufacturer</h2>
+            <select id="manufacturerSelect" class="manufacturer-select">
+                <option value="">-- Select Manufacturer --</option>
+                <option value="worcester_bosch">Worcester Bosch</option>
+                <option value="vaillant">Vaillant</option>
+                <option value="ideal">Ideal</option>
+            </select>
+        </div>
+
+        <!-- Step 2: Photo Upload -->
+        <div class="card" id="step2" style="display:none;">
+            <h2>Step 2: Upload Photo</h2>
+            <div class="instructions">
+                <p><strong>Important:</strong> Include an 85mm reference card in the photo.</p>
+                <p>Place a credit card (85mm) near the flue terminal for scale.</p>
+            </div>
+            <input type="file" id="photoInput" accept="image/*">
+            <button class="btn" onclick="document.getElementById('photoInput').click()">
+                📸 Upload Photo
+            </button>
+        </div>
+
+        <!-- Step 3: Canvas Marking -->
+        <div class="card" id="step3" style="display:none;">
+            <h2 id="step3Title">Step 3: Set Scale</h2>
+            <div class="instructions" id="step3Instructions">
+                <p><strong>Tap two points on the 85mm reference card</strong></p>
+            </div>
+            <div class="canvas-container active" id="canvasContainer">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div id="actionButtons" style="display:none;">
+                <button class="btn btn-success" id="nextStepBtn" style="display:none;">
+                    Next Step ➡️
+                </button>
+                <button class="btn btn-danger" id="startOverBtn">
+                    🔄 Start Over
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Obstacle Selection -->
+        <div class="card" id="step4" style="display:none;">
+            <h2>Step 4: Mark Obstacles</h2>
+            <div class="instructions">
+                <p><strong>Select obstacle type, then draw rectangle around it</strong></p>
+            </div>
+            <div class="obstacle-grid" id="obstacleList">
+                <div class="obstacle-btn" data-type="opening_window">Opening Window</div>
+                <div class="obstacle-btn" data-type="non_opening_window">Non-Opening Window</div>
+                <div class="obstacle-btn" data-type="door">Door</div>
+                <div class="obstacle-btn" data-type="vent">Vent</div>
+                <div class="obstacle-btn" data-type="corner">Corner</div>
+                <div class="obstacle-btn" data-type="ground">Ground</div>
+            </div>
+            <button class="btn btn-success" id="finishBtn" style="display:none;">
+                ✅ Calculate Clearances
+            </button>
+        </div>
+
+        <!-- Results -->
+        <div class="card results" id="results">
+            <h2>Clearance Check Results</h2>
+            <div id="overallResult"></div>
+            <div id="clearanceDetails"></div>
+            <div class="legend">
+                <h3 style="margin-bottom:10px;">Legend:</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(255, 0, 0, 0.3);"></div>
+                    <span>Prohibited Zone (300mm)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(255, 165, 0, 0.3);"></div>
+                    <span>Required Clearance (150mm)</span>
+                </div>
+            </div>
+            <button class="btn btn-success" id="downloadBtn">
+                💾 Download Annotated Photo
+            </button>
+            <button class="btn" id="newCheckBtn">
+                🔄 New Check
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            manufacturer: null,
+            photo: null,
+            pixelsPerMM: null,
+            fluePosition: null,
+            obstacles: [],
+            scalePoints: [],
+            currentStep: 'scale',
+            currentObstacleType: null,
+            drawingObstacle: false,
+            obstacleStart: null
+        };
+
+        // Clearance Rules
+        const RULES = {
+            worcester_bosch: [
+                { type: 'opening_window', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Opening Window' },
+                { type: 'non_opening_window', clearance: 150, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Non-Opening Window' },
+                { type: 'door', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Door' },
+                { type: 'vent', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Vent' },
+                { type: 'corner', clearance: 300, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Corner' },
+                { type: 'ground', clearance: 300, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Ground' }
+            ],
+            vaillant: [
+                { type: 'opening_window', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Opening Window' },
+                { type: 'non_opening_window', clearance: 150, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Non-Opening Window' },
+                { type: 'door', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Door' },
+                { type: 'vent', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Vent' },
+                { type: 'corner', clearance: 300, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Corner' },
+                { type: 'ground', clearance: 300, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Ground' }
+            ],
+            ideal: [
+                { type: 'opening_window', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Opening Window' },
+                { type: 'non_opening_window', clearance: 150, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Non-Opening Window' },
+                { type: 'door', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Door' },
+                { type: 'vent', clearance: 300, zone: 'prohibited', color: 'rgba(255, 0, 0, 0.3)', label: 'Vent' },
+                { type: 'corner', clearance: 300, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Corner' },
+                { type: 'ground', clearance: 300, zone: 'required', color: 'rgba(255, 165, 0, 0.3)', label: 'Ground' }
+            ]
+        };
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let img = null;
+
+        // Manufacturer Selection
+        document.getElementById('manufacturerSelect').addEventListener('change', function() {
+            state.manufacturer = this.value;
+            if (state.manufacturer) {
+                document.getElementById('step2').style.display = 'block';
+                document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+
+        // Photo Upload
+        document.getElementById('photoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    document.getElementById('step3').style.display = 'block';
+                    document.getElementById('actionButtons').style.display = 'block';
+                    document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+
+                    state.scalePoints = [];
+                    state.fluePosition = null;
+                    state.obstacles = [];
+                    state.currentStep = 'scale';
+                };
+                img.src = event.target.result;
+                state.photo = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Canvas Click
+        canvas.addEventListener('click', function(e) {
+            if (state.currentStep === 'obstacles' && state.currentObstacleType) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            if (state.currentStep === 'scale') {
+                state.scalePoints.push({ x, y });
+                redrawCanvas();
+
+                if (state.scalePoints.length === 2) {
+                    const dx = state.scalePoints[1].x - state.scalePoints[0].x;
+                    const dy = state.scalePoints[1].y - state.scalePoints[0].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    state.pixelsPerMM = dist / 85;
+
+                    state.currentStep = 'flue';
+                    updateInstructions();
+                }
+            } else if (state.currentStep === 'flue') {
+                state.fluePosition = { x, y };
+                redrawCanvas();
+                document.getElementById('nextStepBtn').style.display = 'block';
+            }
+        });
+
+        // Mouse Drawing
+        canvas.addEventListener('mousedown', function(e) {
+            if (state.currentStep === 'obstacles' && state.currentObstacleType) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+                state.drawingObstacle = true;
+                state.obstacleStart = { x, y };
+            }
+        });
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (state.drawingObstacle && state.obstacleStart) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+
+                redrawCanvas();
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(state.obstacleStart.x, state.obstacleStart.y, x - state.obstacleStart.x, y - state.obstacleStart.y);
+            }
+        });
+
+        canvas.addEventListener('mouseup', function(e) {
+            if (state.drawingObstacle && state.obstacleStart) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+
+                state.obstacles.push({
+                    type: state.currentObstacleType,
+                    x: Math.min(state.obstacleStart.x, x),
+                    y: Math.min(state.obstacleStart.y, y),
+                    width: Math.abs(x - state.obstacleStart.x),
+                    height: Math.abs(y - state.obstacleStart.y)
+                });
+
+                state.drawingObstacle = false;
+                state.obstacleStart = null;
+                state.currentObstacleType = null;
+
+                document.querySelectorAll('.obstacle-btn').forEach(btn => btn.classList.remove('selected'));
+                document.getElementById('finishBtn').style.display = 'block';
+                redrawCanvas();
+            }
+        });
+
+        // Touch Support
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            if (state.currentStep === 'obstacles' && state.currentObstacleType) {
+                const mouseEvent = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY });
+                canvas.dispatchEvent(mouseEvent);
+            } else {
+                const mouseEvent = new MouseEvent('click', { clientX: touch.clientX, clientY: touch.clientY });
+                canvas.dispatchEvent(mouseEvent);
+            }
+        });
+
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        // Next Step
+        document.getElementById('nextStepBtn').addEventListener('click', function() {
+            state.currentStep = 'obstacles';
+            updateInstructions();
+            document.getElementById('step4').style.display = 'block';
+            document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+            this.style.display = 'none';
+        });
+
+        // Obstacle Selection
+        document.querySelectorAll('.obstacle-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.obstacle-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                state.currentObstacleType = this.dataset.type;
+            });
+        });
+
+        // Finish
+        document.getElementById('finishBtn').addEventListener('click', function() {
+            calculateClearances();
+            showResults();
+        });
+
+        // Update Instructions
+        function updateInstructions() {
+            const title = document.getElementById('step3Title');
+            const instructions = document.getElementById('step3Instructions');
+
+            if (state.currentStep === 'scale') {
+                title.textContent = 'Step 3: Set Scale';
+                instructions.innerHTML = '<p><strong>Tap two points on the 85mm reference card</strong></p>';
+            } else if (state.currentStep === 'flue') {
+                title.textContent = 'Step 4: Mark Flue Terminal';
+                instructions.innerHTML = '<p><strong>Tap the center of the flue terminal</strong></p>';
+            } else if (state.currentStep === 'obstacles') {
+                title.textContent = 'Step 5: Mark Obstacles';
+                instructions.innerHTML = '<p><strong>Draw rectangles around obstacles</strong></p>';
+            }
+        }
+
+        // Redraw Canvas
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            state.scalePoints.forEach((point, i) => {
+                ctx.fillStyle = '#667eea';
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText((i + 1).toString(), point.x, point.y + 5);
+            });
+
+            if (state.scalePoints.length === 2) {
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(state.scalePoints[0].x, state.scalePoints[0].y);
+                ctx.lineTo(state.scalePoints[1].x, state.scalePoints[1].y);
+                ctx.stroke();
+            }
+
+            if (state.fluePosition) {
+                ctx.fillStyle = '#48bb78';
+                ctx.beginPath();
+                ctx.arc(state.fluePosition.x, state.fluePosition.y, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(state.fluePosition.x, state.fluePosition.y, 12, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            state.obstacles.forEach(obs => {
+                ctx.strokeStyle = '#f56565';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+                ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            });
+        }
+
+        // Calculate Clearances
+        function calculateClearances() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            const rules = RULES[state.manufacturer];
+
+            state.obstacles.forEach(obs => {
+                const rule = rules.find(r => r.type === obs.type);
+                if (!rule) return;
+
+                const clearancePx = rule.clearance * state.pixelsPerMM;
+
+                ctx.fillStyle = rule.color;
+                ctx.fillRect(obs.x - clearancePx, obs.y - clearancePx, obs.width + clearancePx * 2, obs.height + clearancePx * 2);
+
+                ctx.strokeStyle = rule.color.replace('0.3', '0.8');
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obs.x - clearancePx, obs.y - clearancePx, obs.width + clearancePx * 2, obs.height + clearancePx * 2);
+
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+            });
+
+            if (state.fluePosition) {
+                ctx.fillStyle = '#48bb78';
+                ctx.beginPath();
+                ctx.arc(state.fluePosition.x, state.fluePosition.y, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(state.fluePosition.x, state.fluePosition.y, 12, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // Show Results
+        function showResults() {
+            const rules = RULES[state.manufacturer];
+            let pass = true;
+            let violations = [];
+
+            state.obstacles.forEach(obs => {
+                const rule = rules.find(r => r.type === obs.type);
+                if (!rule) return;
+
+                const clearancePx = rule.clearance * state.pixelsPerMM;
+                const zoneX = obs.x - clearancePx;
+                const zoneY = obs.y - clearancePx;
+                const zoneW = obs.width + clearancePx * 2;
+                const zoneH = obs.height + clearancePx * 2;
+
+                const fx = state.fluePosition.x;
+                const fy = state.fluePosition.y;
+
+                if (fx >= zoneX && fx <= zoneX + zoneW && fy >= zoneY && fy <= zoneY + zoneH) {
+                    const dx = Math.max(obs.x - fx, 0, fx - (obs.x + obs.width));
+                    const dy = Math.max(obs.y - fy, 0, fy - (obs.y + obs.height));
+                    const actualDist = Math.round(Math.sqrt(dx * dx + dy * dy) / state.pixelsPerMM);
+
+                    pass = false;
+                    violations.push({
+                        label: rule.label,
+                        actual: actualDist,
+                        required: rule.clearance
+                    });
+                }
+            });
+
+            const overallResult = document.getElementById('overallResult');
+            if (pass) {
+                overallResult.className = 'status success';
+                overallResult.innerHTML = '<strong>✅ PASS</strong> - All clearances met!';
+            } else {
+                overallResult.className = 'status error';
+                overallResult.innerHTML = '<strong>❌ FAIL</strong> - Clearance violations detected';
+            }
+
+            const details = document.getElementById('clearanceDetails');
+            if (violations.length > 0) {
+                details.innerHTML = '<h3 style="margin-top:20px;">Violations:</h3>';
+                violations.forEach(v => {
+                    const item = document.createElement('div');
+                    item.className = 'clearance-item fail';
+                    item.innerHTML = `<span class="label">${v.label}</span><span class="value">${v.actual}mm / ${v.required}mm required</span>`;
+                    details.appendChild(item);
+                });
+            } else {
+                details.innerHTML = '<p style="margin-top:20px; color:#48bb78; font-weight:600;">No violations detected!</p>';
+            }
+
+            document.getElementById('results').classList.add('active');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Download
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            const link = document.createElement('a');
+            link.download = `flue-clearance-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+
+        // New Check
+        document.getElementById('newCheckBtn').addEventListener('click', function() {
+            location.reload();
+        });
+
+        // Start Over
+        document.getElementById('startOverBtn').addEventListener('click', function() {
+            location.reload();
+        });
+    </script>
+</body>
+</html>
