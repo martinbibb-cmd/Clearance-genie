@@ -5,6 +5,9 @@ compatibility_date = "2025-11-16"
 [observability]
 enabled = true
 
+# Required secrets (set via: wrangler secret put OPENAI_API_KEY)
+# - OPENAI_API_KEY: OpenAI API key for object detection (gpt-4o-mini)
+
 [vars]
 ALLOWED_ORIGINS = "https://martinbibb-cmd.github.io"
 

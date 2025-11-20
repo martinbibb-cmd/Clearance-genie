@@ -22,7 +22,23 @@ Or login interactively:
 npx wrangler login
 ```
 
-### 2. Deploy the Worker
+### 2. Configure Required Secrets
+
+The worker requires an OpenAI API key to perform object detection. Set it as a secret:
+
+```bash
+npx wrangler secret put OPENAI_API_KEY
+```
+
+When prompted, paste your OpenAI API key (it should start with `sk-` or `sk-proj-`).
+
+**Important Notes:**
+- The worker uses the `gpt-4o-mini` model for object detection
+- Without this key, the auto-detect feature will not work
+- The key is stored securely in Cloudflare and never exposed in the code
+- You can verify the secret was set by checking the Cloudflare dashboard under Workers > clearance-genie-worker > Settings > Variables
+
+### 3. Deploy the Worker
 
 Deploy to production:
 
@@ -40,7 +56,7 @@ npx wrangler deploy --env=""
 npx wrangler deploy --env=preview
 ```
 
-### 3. Verify Deployment
+### 4. Verify Deployment
 
 Test the CORS preflight:
 
@@ -88,7 +104,36 @@ The worker is configured via `wrangler.toml`:
 - **Allowed origins**: https://martinbibb-cmd.github.io
 - **Preview allowed origins**: * (all origins)
 
+## Required Environment Variables
+
+The worker requires the following secrets to be set:
+
+| Secret | Description | How to Set |
+|--------|-------------|------------|
+| `OPENAI_API_KEY` | OpenAI API key for object detection using gpt-4o-mini | `npx wrangler secret put OPENAI_API_KEY` |
+
 ## Troubleshooting
+
+### Object Detection Not Working
+
+If the auto-detect feature is not working:
+
+1. Verify the OPENAI_API_KEY secret is set:
+   - Check Cloudflare dashboard: Workers > clearance-genie-worker > Settings > Variables
+   - Or re-run: `npx wrangler secret put OPENAI_API_KEY`
+
+2. Check worker logs for errors:
+   ```bash
+   npx wrangler tail
+   ```
+   Look for "Missing OPENAI_API_KEY" warnings
+
+3. Test the worker endpoint directly (requires a valid image):
+   ```bash
+   curl -X POST https://clearance-genie-worker.martinbibb.workers.dev \
+     -H "Content-Type: application/json" \
+     -d '{"image":"data:image/jpeg;base64,...","pxPerMM":1,"mode":"flue","position":{"x":100,"y":100},"imageWidth":800,"imageHeight":600}'
+   ```
 
 ### 403 Forbidden Error
 
