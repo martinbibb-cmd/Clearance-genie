@@ -346,8 +346,8 @@ async function detectObjectsWithOpenAI(imageBase64, imageWidth, imageHeight, env
 
   const apiKey = env?.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn("Missing OPENAI_API_KEY env var for detection");
-    return [];
+    console.error("Missing OPENAI_API_KEY env var for detection");
+    throw new Error("OpenAI API key not configured in worker");
   }
 
   try {
@@ -390,7 +390,7 @@ async function detectObjectsWithOpenAI(imageBase64, imageWidth, imageHeight, env
     if (!response.ok) {
       const error = await response.text();
       console.error("OpenAI detection error:", error);
-      return [];
+      throw new Error(`OpenAI API error (${response.status}): ${error}`);
     }
 
     const result = await response.json();
@@ -402,10 +402,10 @@ async function detectObjectsWithOpenAI(imageBase64, imageWidth, imageHeight, env
     }
 
     console.error("Unexpected OpenAI response format:", messageContent);
-    return [];
+    throw new Error("OpenAI returned invalid response format");
   } catch (error) {
     console.error("Failed to call OpenAI API:", error);
-    return [];
+    throw error;
   }
 }
 

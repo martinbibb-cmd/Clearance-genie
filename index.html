@@ -6296,7 +6296,9 @@ Format the response in clear, professional language suitable for a gas engineer.
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API error: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMsg = errorData.message || errorData.error || response.statusText;
+                    throw new Error(`API error: ${errorMsg}`);
                 }
 
                 const result = await response.json();
@@ -6321,7 +6323,20 @@ Format the response in clear, professional language suitable for a gas engineer.
 
             } catch (error) {
                 console.error('Detection error:', error);
-                status.textContent = '❌ Object detection failed. Please try manual marking.';
+
+                // Show specific error message
+                let errorMsg = 'Object detection failed.';
+                if (error.message.includes('OpenAI API key')) {
+                    errorMsg = '❌ OpenAI API key not configured in worker. Contact administrator.';
+                } else if (error.message.includes('OpenAI API error')) {
+                    errorMsg = `❌ ${error.message}`;
+                } else if (error.message.includes('Invalid API response')) {
+                    errorMsg = '❌ Worker returned invalid response.';
+                } else {
+                    errorMsg = `❌ ${error.message || 'Object detection failed.'}`;
+                }
+
+                status.textContent = errorMsg;
                 status.classList.add('warning');
 
                 // Fall back to manual marking
