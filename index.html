@@ -6257,6 +6257,26 @@ Format the response in clear, professional language suitable for a gas engineer.
         async function detectObjectsWithGemini() {
             const status = document.getElementById('positionStatus');
             status.textContent = '🔍 Detecting objects with AI...';
+            status.classList.remove('warning');
+
+            // Ensure we have everything needed before calling the worker
+            if (!state.photo || !state.canvas || !state.ctx) {
+                status.textContent = '❌ Please load a photo before running detection.';
+                status.classList.add('warning');
+                return;
+            }
+
+            if (!state.position) {
+                status.textContent = '❌ Tap the flue position before running detection.';
+                status.classList.add('warning');
+                return;
+            }
+
+            if (!state.pxPerMM) {
+                status.textContent = '❌ Calibrate the image before running detection.';
+                status.classList.add('warning');
+                return;
+            }
 
             try {
                 // Call the Cloudflare Worker (which calls Gemini)
@@ -6310,6 +6330,11 @@ Format the response in clear, professional language suitable for a gas engineer.
         }
 
         function drawDetectedObjects() {
+            if (!state.photo || !state.canvas || !state.ctx || !state.position) {
+                console.warn('Skipping drawDetectedObjects: missing canvas, photo, or position');
+                return;
+            }
+
             // Clear and redraw
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
             state.ctx.drawImage(state.photo, 0, 0);
