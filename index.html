@@ -1225,7 +1225,7 @@
             markingMode: null, // Current obstacle type being marked
             markingPoints: [], // Points collected during marking
             zones: null,
-            detectedObjects: [], // Objects detected by Gemini API
+            detectedObjects: [], // Objects detected by OpenAI
             boilerDimensions: null,
             boilerClearances: null,
             // Zoom and pan state
@@ -6254,12 +6254,32 @@ Format the response in clear, professional language suitable for a gas engineer.
             }
         }
 
-        async function detectObjectsWithGemini() {
+        async function detectObjectsWithOpenAI() {
             const status = document.getElementById('positionStatus');
-            status.textContent = '🔍 Detecting objects with AI...';
+            status.textContent = '🔍 Detecting objects with OpenAI...';
+            status.classList.remove('warning');
+
+            // Ensure we have everything needed before calling the worker
+            if (!state.photo || !state.canvas || !state.ctx) {
+                status.textContent = '❌ Please load a photo before running detection.';
+                status.classList.add('warning');
+                return;
+            }
+
+            if (!state.position) {
+                status.textContent = '❌ Tap the flue position before running detection.';
+                status.classList.add('warning');
+                return;
+            }
+
+            if (!state.pxPerMM) {
+                status.textContent = '❌ Calibrate the image before running detection.';
+                status.classList.add('warning');
+                return;
+            }
 
             try {
-                // Call the Cloudflare Worker (which calls Gemini)
+                // Call the Cloudflare Worker (which calls OpenAI)
                 const response = await fetch('https://clearance-genie-worker.martinbibb.workers.dev', {
                     method: 'POST',
                     headers: {
@@ -6310,6 +6330,11 @@ Format the response in clear, professional language suitable for a gas engineer.
         }
 
         function drawDetectedObjects() {
+            if (!state.photo || !state.canvas || !state.ctx || !state.position) {
+                console.warn('Skipping drawDetectedObjects: missing canvas, photo, or position');
+                return;
+            }
+
             // Clear and redraw
             state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
             state.ctx.drawImage(state.photo, 0, 0);
